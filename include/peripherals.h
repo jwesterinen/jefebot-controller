@@ -47,12 +47,20 @@ private:
 	const static unsigned DC2WatchdogTimeout = 1500;
 	const static float MinSpeed = 20.0;
 	const static float MaxSpeed = 100.0;
+	const static float MaxVelocityErr = 5.0;
 	const static unsigned RadiansPerTick = 0;
+
+    // TODO: tweak, tweak, tweak !!!
+	// PID controller gains
+	const static float Kp = 0.01;
+	const static float Ki = 0.0;
+	const static float Kd = 0.0;
+
 	enum DIRECTION {STOP, MOVE_FORWARD, MOVE_REVERSE, SPIN_CW, SPIN_CCW} direction;
 	float defaultSpeed;
 	int ticks[2];			// total accumulated count -- must be signed, +/- -> fwd/rev
 	char modes[2];
-	float speeds[2];
+	float powers[2];
 
 	float TicksToRadians(unsigned ticks);
 	float TicksToCm(unsigned ticks);
@@ -76,12 +84,12 @@ public:
 	{
 		return modes[index];
 	}
-	float GetSpeed(int index)
+	float GetPower(int index)
 	{
-		return speeds[index];
+		return powers[index];
 	}
-	void SetMode(int index, char mode);
-	void SetSpeed(int index, float speed);
+	void SetMode(char modeL, char modeR);
+	void SetPower(float powerL, float powerR);
 	void Stop();
 	void MoveForward(unsigned distance);
 	void MoveReverse(unsigned distance);

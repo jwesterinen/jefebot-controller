@@ -199,13 +199,13 @@ public:
 	{
 		return WriteConfig("mode1", ToString(mode));
 	}
-	void SetSpeed0(float speed)
+	void SetPower0(float power)
 	{
-		return WriteConfig("power0", ToString(speed));
+		return WriteConfig("power0", ToString(power));
 	}
-	void SetSpeed1(float speed)
+	void SetPower1(float power)
 	{
-		return WriteConfig("power1", ToString(speed));
+		return WriteConfig("power1", ToString(power));
 	}
 	void SetPWMfrequency(unsigned freqInHz)
 	{

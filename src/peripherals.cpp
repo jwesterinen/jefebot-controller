@@ -23,7 +23,7 @@ Locomotive::Locomotive(Framework& framework, float _defaultSpeed) :
 {
 	ticks[0] = ticks[1] = 0;
 	modes[0] = modes[1] = DP_DC2::BREAK;
-	speeds[0] = speeds[1] = 0.0;
+	powers[0] = powers[1] = 0.0;
 
 	if (MinSpeed > defaultSpeed || defaultSpeed > MaxSpeed)
 	{
@@ -45,18 +45,15 @@ Locomotive::Locomotive(Framework& framework, float _defaultSpeed) :
 void Locomotive::Stop()
 {
     direction = STOP;
-    SetMode(LEFT, BREAK);
-    SetMode(RIGHT, BREAK);
-    SetSpeed(LEFT, defaultSpeed);
-    SetSpeed(RIGHT, defaultSpeed);
+    SetMode(BREAK, BREAK);
+    SetPower(defaultSpeed, defaultSpeed);
 }
 
 // move indefinitely if distance is 0
 void Locomotive::MoveForward(unsigned distance)
 {
     direction = MOVE_FORWARD;
-    SetMode(LEFT, FORWARD);
-    SetMode(RIGHT, FORWARD);
+    SetMode(FORWARD, FORWARD);
     if (distance > 0)
     {
     	MoveDistance(distance);
@@ -68,8 +65,7 @@ void Locomotive::MoveForward(unsigned distance)
 void Locomotive::MoveReverse(unsigned distance)
 {
     direction = MOVE_REVERSE;
-    SetMode(LEFT, REVERSE);
-    SetMode(RIGHT, REVERSE);
+    SetMode(REVERSE, REVERSE);
     if (distance > 0)
     {
     	MoveDistance(distance);
@@ -81,8 +77,7 @@ void Locomotive::MoveReverse(unsigned distance)
 void Locomotive::SpinCW(float angle)
 {
     direction = SPIN_CW;
-    SetMode(LEFT, FORWARD);
-    SetMode(RIGHT, REVERSE);
+    SetMode(FORWARD, REVERSE);
     if (angle > 0)
     {
     	MoveAngle(angle);
@@ -94,8 +89,7 @@ void Locomotive::SpinCW(float angle)
 void Locomotive::SpinCCW(float angle)
 {
     direction = SPIN_CCW;
-    SetMode(LEFT, REVERSE);
-    SetMode(RIGHT, FORWARD);
+    SetMode(REVERSE, FORWARD);
     if (angle > 0)
     {
     	MoveAngle(angle);
@@ -103,28 +97,24 @@ void Locomotive::SpinCCW(float angle)
     }
 }
 
-void Locomotive::SetMode(int index, char mode)
+void Locomotive::SetMode(char modeL, char modeR)
 {
-	modes[index] = mode;
-	if (index == LEFT)
-		return SetMode0(mode);
-	else
-		return SetMode1(mode);
+	SetMode0(modes[LEFT] = modeL);
+	SetMode1(modes[RIGHT] = modeR);
 }
 
-void Locomotive::SetSpeed(int index, float speed)
+void Locomotive::SetPower(float powerL, float powerR)
 {
-	if (MinSpeed > speed || speed > MaxSpeed)
+	if ((MinSpeed <= powerL && powerL <= MaxSpeed) && (MinSpeed <= powerR || powerR <= MaxSpeed))
     {
-    	throw FrameworkException("Locomotive speed", ERR_PARAMS);
-    }
-    if (speed != speeds[index])
-    {
-        speeds[index] = speed;
-        if (index == LEFT)
-        	SetSpeed0(speed);
-        else
-        	SetSpeed1(speed);
+	    if (powerL != powers[LEFT])
+	    {
+	        SetPower0(powers[LEFT] = powerL);
+	    }
+	    if (powerR != powers[RIGHT])
+	    {
+	        SetPower1(powers[RIGHT] = powerR);
+	    }
     }
 }
 
@@ -188,31 +178,44 @@ void Locomotive::Handler()
 
 #ifdef P_LOOP
     // PID controller
-    // TODO: tweak, tweak, tweak !!!
-    float Kp = 0.01;
 
     if (direction == MOVE_FORWARD && GetInterval(LEFT) != 0 && GetInterval(RIGHT) != 0)
     {
-    	float vl = GetCount(LEFT) / GetInterval(LEFT);
-		float vr = GetCount(RIGHT) / GetInterval(RIGHT);
-		float err = (vl > vr) ? vl - vr : vr - vl;
-printf("PID: err = %f\n", err);
+    	// calculate the velocity of each motor
+		unsigned countL = GetCount(LEFT);
+		float intvlL = GetInterval(LEFT);
+    	float vl = countL / intvlL;
+		unsigned countR = GetCount(RIGHT);
+		float intvlR = GetInterval(RIGHT);
+		float vr = countR / intvlR;
+
+		// TODO: are anomalous velocities an issue with the Count4 peripheral (due to bad intervals)???
+		// determine the velocity error and filter out anomalies
+		float err = vl - vr;
+		if (-MaxVelocityErr > err || err > MaxVelocityErr)
+		{
+			return;
+		}
+
+		// calculate the proportional component of the power adjustment
 		float P = Kp * err;
-		float speedL = GetSpeed(LEFT);
-		float speedR = GetSpeed(RIGHT);
-		if (vl > vr)
-		{
-			SetSpeed(LEFT, speedL - ((P/2) * speedL));
-			SetSpeed(RIGHT, speedR + ((P/2) * speedR));
-		}
-		else
-		{
-			SetSpeed(LEFT, speedL + ((P/2) * speedL));
-			SetSpeed(RIGHT, speedR - ((P/2) * speedR));
-		}
+printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
+
+		// TODO: I and D components must be calculated per-motor
+		// for now calculate the power adjustment solely based on the proportional component
+#if 1//def POWER_ADJ
+		float powerL = GetPower(LEFT);
+		float powerR = GetPower(RIGHT);
+		float adjL = (P/2) * powerL;
+		float adjR = (P/2) * powerR;
+		float newPwrL = powerL - adjL;
+		float newPwrR = powerR - adjR;
+printf("Power: LEFT: %f - %f = %f  RIGHT: %f - %f = %f \n", powerL, adjL, newPwrL, powerR, adjL, newPwrL);
+		SetPower(newPwrL, newPwrR);
+#endif
     }
 #else
-    // balance the motor speeds
+    // simple balancing of the motor speeds
     if (direction == MOVE_FORWARD)
     {
     	float newSpeed = GetSpeed(LEFT);
