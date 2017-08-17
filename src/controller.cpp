@@ -15,6 +15,8 @@
 #include <cmath>
 #include "controller.h"
 
+#define BETTER_AVOIDANCE
+
 Controller::Controller(Context& ctx, bool _isVerbose) :
 	Callback(Period),
 	ui(ctx.ui), locomotive(ctx.locomotive), edgeDetector(ctx.edgeDetector), rangeSensor(ctx.rangeSensor),
@@ -40,15 +42,13 @@ void Controller::TurnLeft(float radians)
 	locomotive.MoveAngle(radians);
     locomotive.Stop();
 }
+#endif
 
 // move backwards by a number of CM
 void Controller::BackUp(unsigned distance)
 {
-	locomotive.MoveReverse();
-    locomotive.MoveDistance(distance);
-    locomotive.Stop();
+	locomotive.MoveReverse(distance);
 }
-#endif
 
 RoamController::RoamController(Context& ctx, bool isVerbose) :
 	Controller(ctx, isVerbose), state(ROAM)
@@ -85,6 +85,9 @@ void RoamController::Routine()
 		case AVOID_EDGE:
 			if (edgeDetector.AtEdge(EdgeDetector::LEFT))
 			{
+				locomotive.Stop();
+				BackUp(300000);
+				locomotive.Stop();
 				locomotive.SpinCW(RANDOM_VALUE);
 			}
 			else if (edgeDetector.AtEdge(EdgeDetector::FRONT))
@@ -96,10 +99,26 @@ void RoamController::Routine()
 					BackUp(RANDOM_VALUE);
 				}
 #endif
-				(edgeDetector.AtEdge(EdgeDetector::LEFT)) ? locomotive.SpinCW(RANDOM_VALUE) : locomotive.SpinCCW(RANDOM_VALUE);
+				if (edgeDetector.AtEdge(EdgeDetector::LEFT))
+				{
+					locomotive.Stop();
+					BackUp(300000);
+					locomotive.Stop();
+					locomotive.SpinCW(RANDOM_VALUE);
+				}
+				else
+				{
+					locomotive.Stop();
+					BackUp(300000);
+					locomotive.Stop();
+					locomotive.SpinCCW(RANDOM_VALUE);
+				}
 			}
 			else if (edgeDetector.AtEdge(EdgeDetector::RIGHT))
 			{
+				locomotive.Stop();
+				BackUp(300000);
+				locomotive.Stop();
 				locomotive.SpinCCW(RANDOM_VALUE);
 			}
 			locomotive.MoveForward(0);
@@ -232,7 +251,7 @@ void GotoObjectController::Routine()
 		case AVOID_EDGE:
 // TODO: need better avoidance
 #ifdef BETTER_AVOIDANCE
-			BackUp(RANDOM_VALUE);
+			BackUp(300);
 #endif
 			locomotive.SpinCW(0);
 			state = FIND_OBJECT;

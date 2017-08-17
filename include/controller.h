@@ -24,8 +24,8 @@ protected:
 #if 0
 	virtual void TurnRight(float radians);
 	virtual void TurnLeft(float radians);
-	virtual void BackUp(unsigned distance);
 #endif
+	virtual void BackUp(unsigned distance);
 
 public:
 	struct Context
