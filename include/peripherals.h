@@ -52,7 +52,7 @@ private:
 
     // TODO: tweak, tweak, tweak !!!
 	// PID controller gains
-	const static float Kp = 0.01;
+	const static float Kp = 0.02;
 	const static float Ki = 0.0;
 	const static float Kd = 0.0;
 

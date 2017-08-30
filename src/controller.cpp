@@ -198,7 +198,10 @@ void GotoObjectController::Routine()
 				// TODO: change to a specific amount of angle to spin to eliminate the adjust position state
 				locomotive.SpinCCW(0);
 				state = ADJUST_POSITION;
-				if (isVerbose) printf("changing state to ADJUST_POSITION\n");
+				if (isVerbose)
+				{
+					printf("changing state to ADJUST_POSITION\n");
+				}
 			}
 			break;
 
@@ -220,31 +223,65 @@ void GotoObjectController::Routine()
 			break;
 
 		case GOTO_OBJECT:
-			// TODO: replace this with a PID controller algorithm
 			if (!rangeSensor.DetectObject(&distance))
 			{
 				locomotive.SpinCW(0);
 				state = FIND_OBJECT;
-				if (isVerbose) printf("changing state to FIND_OBJECT\n");
+				if (isVerbose)
+				{
+					printf("object lost at distance %d\n", distance);
+					printf("changing state to FIND_OBJECT\n");
+				}
 			}
 			else if (rangeSensor.AtObject())
 			{
 				state = PUSH_OBJECT;
-				if (isVerbose) printf("changing state to FIND_OBJECT\n");
+				if (isVerbose)
+				{
+					printf("object reached at distance %d\n", rangeSensor.GetDistance());
+					printf("changing state to PUSH_OBJECT\n");
+				}
 			}
+#if 0
 			else if (edgeDetector.AtAnyEdge())
 			{
 				locomotive.Stop();
 				state = AVOID_EDGE;
-				if (isVerbose) printf("changing state to AVOID_EDGE\n");
+				if (isVerbose)
+				{
+					printf("edge found:\n");
+					printf("  left sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::LEFT));
+					printf("  front sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::FRONT));
+					printf("  right sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::RIGHT));
+					printf("changing state to AVOID_EDGE\n");
+				}
 			}
+#endif
 			break;
 
 		case PUSH_OBJECT:
+			// FIXME: why are edges spuriously found?
+#if 0
 			if (edgeDetector.AtAnyEdge())
 			{
-				printf("objective achieved...\n");
-				Shutdown("", 0);
+				if (isVerbose)
+				{
+					printf("edge found:\n");
+					printf("  left sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::LEFT));
+					printf("  front sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::FRONT));
+					printf("  right sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::RIGHT));
+				}
+				locomotive.Stop();
+				Shutdown("edge detected", 0);
+			}
+#endif
+			if (!rangeSensor.AtObject())
+			{
+				if (isVerbose)
+				{
+					printf("object lost at distance %d\n", rangeSensor.GetDistance());
+				}
+				Shutdown("objective achieved...\n", 0);
 			}
 			break;
 

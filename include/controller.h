@@ -6,7 +6,9 @@
 // TODO: make turning actually use odometry to figure out radians
 #define RANDOM_VALUE ((rand() % 8) * 100000)
 
-#define TRIM 3
+#define TRIM 2
+//#define TRIM 3
+//#define TRIM 0
 
 class Controller : public Callback
 {

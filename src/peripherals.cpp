@@ -199,7 +199,7 @@ void Locomotive::Handler()
 
 		// calculate the proportional component of the power adjustment
 		float P = Kp * err;
-printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
+//printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
 
 		// TODO: I and D components must be calculated per-motor
 		// for now calculate the power adjustment solely based on the proportional component
@@ -210,7 +210,7 @@ printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %
 		float adjR = (P/2) * powerR;
 		float newPwrL = powerL - adjL;
 		float newPwrR = powerR - adjR;
-printf("Power: LEFT: %f - %f = %f  RIGHT: %f - %f = %f \n", powerL, adjL, newPwrL, powerR, adjL, newPwrL);
+//printf("Power: LEFT: %f - %f = %f  RIGHT: %f - %f = %f \n", powerL, adjL, newPwrL, powerR, adjL, newPwrL);
 		SetPower(newPwrL, newPwrR);
 #endif
     }

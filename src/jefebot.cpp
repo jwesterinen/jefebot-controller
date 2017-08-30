@@ -56,10 +56,12 @@
 #ifdef USE_DISTANCE_NOT_VOLTAGE
 #define DEFAULT_EDGE_LIMIT ???
 #else
-#define DEFAULT_EDGE_LIMIT 1700
+#define DEFAULT_EDGE_LIMIT 1000
 #endif
-#define DEFAULT_INNER_LIMIT 30
-#define DEFAULT_OUTER_LIMIT 260
+//#define DEFAULT_INNER_LIMIT 40
+#define DEFAULT_INNER_LIMIT 35
+//#define DEFAULT_OUTER_LIMIT 260
+#define DEFAULT_OUTER_LIMIT 500
 
 // controller modes, i.e. behaviors
 enum CONTROLLER_MODE {CM_ROAM, CM_GOTO_OBJECT, CM_GOTO_GOAL};
@@ -380,8 +382,8 @@ void InitControlProgram(int argc, char* argv[], Framework& framework)
 
 void Shutdown(const char* msg, int error)
 {
-	// stop moving
-	if (!options.isTestMode)
+	// stop moving if there is a locomotive
+	if (locomotive)
 		locomotive->Stop();
 
 	// clear LEDs
@@ -389,9 +391,11 @@ void Shutdown(const char* msg, int error)
 
 	//shutdown any SPI or I2C devices
 
-	// display error status
+	// display shutdown status message
 	if (error != ERR_NONE)
 		printf("%s: %s\nexiting...\n", msg, GetErrorMsg(error));
+	else
+		printf("%s\n", msg);
 
 	// allow dpserver to catch up
     sleep(1);

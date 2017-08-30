@@ -177,7 +177,7 @@ void DP_Adc812::Config(unsigned period, DIFF_PAIRS differentialPairs)
 {
 	char buffer[80] = {0};
 	sprintf(buffer, "%u, 0x%02x", period, differentialPairs);
-    WriteConfig("enable", buffer);
+    WriteConfig("config", buffer);
 }
 
 void DP_Adc812::Handler()
