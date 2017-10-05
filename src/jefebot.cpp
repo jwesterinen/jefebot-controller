@@ -61,7 +61,7 @@
 //#define DEFAULT_INNER_LIMIT 40
 #define DEFAULT_INNER_LIMIT 35
 //#define DEFAULT_OUTER_LIMIT 260
-#define DEFAULT_OUTER_LIMIT 500
+#define DEFAULT_OUTER_LIMIT 300
 
 // controller modes, i.e. behaviors
 enum CONTROLLER_MODE {CM_ROAM, CM_GOTO_OBJECT, CM_GOTO_GOAL};
@@ -73,6 +73,8 @@ struct Options
 	bool isTestMode;
 	bool doPrintBatteryVoltage;
 	bool doPrintSensorValues;
+	int distanceToMove;
+	float angleToSpin;
 	float defaultMotorSpeed;
 	int nominalEdgeLimit;
 	int objectInnerLimit;
@@ -84,6 +86,8 @@ struct Options
 		isTestMode(false),
 		doPrintBatteryVoltage(false),
 		doPrintSensorValues(false),
+		distanceToMove(0),
+		angleToSpin(0.0),
 		defaultMotorSpeed(DEFAULT_SPEED),
 		nominalEdgeLimit(DEFAULT_EDGE_LIMIT),
 		objectInnerLimit(DEFAULT_INNER_LIMIT),
@@ -146,7 +150,7 @@ BEGIN_PERIODIC_ROUTINE(DisplayBatteryVoltage)
 			Shutdown("jefebot", ERR_LOW_VOLTAGE);
 		}
 		printf("battery voltage = %#.1f V\n", BatteryVoltage);
-		Shutdown("", ERR_NONE);
+		Shutdown();
 	}
 }
 END_PERIODIC_ROUTINE(DisplayBatteryVoltage)(PERIOD_100_mSEC);
@@ -172,6 +176,46 @@ BEGIN_PERIODIC_ROUTINE(DisplaySensorValues)
 }
 END_PERIODIC_ROUTINE(DisplaySensorValues)(PERIOD_100_mSEC);
 
+// periodic routine to show sensor values
+BEGIN_PERIODIC_ROUTINE(MoveDistance)
+{
+	void Routine()
+	{
+		try
+		{
+			locomotive->MoveForward(0);
+			if (locomotive->HasMovedDistance(options.distanceToMove))
+			{
+				Shutdown();
+			}
+
+		} catch (FrameworkException& e) {
+			Shutdown(e.what(), e.Error());
+		}
+	}
+}
+END_PERIODIC_ROUTINE(MoveDistance)(PERIOD_100_mSEC);
+
+// periodic routine to show sensor values
+BEGIN_PERIODIC_ROUTINE(SpinAngle)
+{
+	void Routine()
+	{
+		try
+		{
+			locomotive->SpinCCW(0);
+			if (locomotive->HasTurnedAngle(options.angleToSpin))
+			{
+				Shutdown();
+			}
+
+		} catch (FrameworkException& e) {
+			Shutdown(e.what(), e.Error());
+		}
+	}
+}
+END_PERIODIC_ROUTINE(SpinAngle)(PERIOD_100_mSEC);
+
 // periodic routine to test for the pressing of button S3 to shutdown
 BEGIN_PERIODIC_ROUTINE(CheckInput)
 {
@@ -181,7 +225,7 @@ BEGIN_PERIODIC_ROUTINE(CheckInput)
 		{
 			if (ui->IsButtonPressed(UserInterface::BUTTON3))
 			{
-				Shutdown("", ERR_NONE);
+				Shutdown();
 			}
 
 		} catch (FrameworkException& e) {
@@ -213,7 +257,7 @@ END_PERIODIC_ROUTINE(TestModeIndication)(PERIOD_300_mSEC);
 
 static void ParseOptions(int argc, char* argv[])
 {
-	const char* optStr = "m:e:o:i:s:p:vh";
+	const char* optStr = "m:e:o:i:s:p:d:a:vh";
 	int opt;
 
 	while ((opt = getopt(argc, argv, optStr)) != -1)
@@ -232,7 +276,7 @@ static void ParseOptions(int argc, char* argv[])
 					case 'r':
 						break;
 					default:
-						printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -v -h]\n");
+						printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -d <distance> -a <angle> -v -h]\n");
 						exit(ERR_CONTROLLER_MODE);
 				}
 				break;
@@ -259,23 +303,33 @@ static void ParseOptions(int argc, char* argv[])
 						options.doPrintSensorValues = true;
 						break;
 					default:
-						printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -v -h]\n");
+						printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -d <distance> -a <angle> -v -h]\n");
 						exit(ERR_INITIALIZATION);
 				}
+				break;
+			case 'd':
+				options.isTestMode = true;
+				options.distanceToMove = atoi(optarg);
+				break;
+			case 'a':
+				options.isTestMode = true;
+				options.angleToSpin = atof(optarg);
 				break;
 			case 'v':
 				options.isVerbose = true;
 				break;
 			case 'h':
-				printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -v -h]\n");
+				printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -d <distance> -a <angle> -v -h]\n");
 				printf("\n");
 				printf("     options:\n");
-				printf("         -m<mode>: 	    set the controller mode: 'p' = Roam, 'o' = GoToObject\n");
+				printf("         -m <mode>:     set the controller mode: 'p' = Roam, 'o' = GoToObject\n");
 				printf("         -e <value>:    set the range outside of which an edge is detected\n");
 				printf("         -o <value>:    set the range within which to find an object\n");
 				printf("         -i <value>:    set how close to stop at the object\n");
 				printf("         -s <value>:    set the motor speed (must be >=60)\n");
-				printf("         -p<value>:     print sensor values: 'v' = battery voltage, 's' = all distance sensors (range and edge)\n");
+				printf("         -p <value>:    print sensor values: 'v' = battery voltage, 's' = all distance sensors (range and edge)\n");
+				printf("         -d <value>:    move forward the specified number of centimeters\n");
+				printf("         -a <value>:    spin CW the specified number of radians\n");
 				printf("         -v:            set verbose mode\n");
 				printf("         -h:            display this help\n");
 				exit(ERR_NONE);
@@ -305,7 +359,7 @@ void InitControlProgram(int argc, char* argv[], Framework& framework)
 		edgeDetector = new EdgeDetector(framework, options.nominalEdgeLimit);
 		rangeSensor = new SinglePingRangeSensor(framework, options.objectInnerLimit, options.objectOuterLimit);
 		voltMeter = new VoltMeter(framework);
-
+		locomotive = new Locomotive(framework, options.defaultMotorSpeed);
 
 		// register an input handler routine
 		framework.Register(&CheckInput);
@@ -326,37 +380,30 @@ void InitControlProgram(int argc, char* argv[], Framework& framework)
 			}
 
 			// register a periodic routine to display sensor values
-			if (options.doPrintSensorValues)
+			else if (options.doPrintSensorValues)
 			{
 				framework.Register(&DisplaySensorValues);
+			}
+
+			// register a periodic routine to display sensor values
+			else if (options.distanceToMove != 0)
+			{
+				framework.Register(&MoveDistance);
+				printf("moving %d cm...\n", options.distanceToMove);
+			}
+
+			// register a periodic routine to display sensor values
+			else if (options.angleToSpin != 0.0)
+			{
+				framework.Register(&SpinAngle);
+				printf("spinning %f radians...\n", options.angleToSpin);
 			}
 		}
 
 		// create the rest of the elements needed for normal operation
 		else
 		{
-			// create the locomotive
-			locomotive = new Locomotive(framework, options.defaultMotorSpeed);
-
-			// register DP servo peripheral used for grabber
-			//...
-
 			// init State machine
-#if 0
-			switch(options.controllerMode)
-			{
-				case CM_ROAM:
-					controller = new RoamController(*ui, *locomotive, *edgeDetector, *rangeSensor, options.isVerbose);
-					framework.Register(controller);
-					break;
-				case CM_GOTO_OBJECT:
-					controller = new GotoObjectController(*ui, *locomotive, *edgeDetector, *rangeSensor, options.isVerbose);
-					framework.Register(controller);
-					break;
-				default:
-					assert(false);
-			}
-#else
 			Controller::Context ctx(*ui, *locomotive, *edgeDetector, *rangeSensor);
 			switch(options.controllerMode)
 			{
@@ -371,13 +418,17 @@ void InitControlProgram(int argc, char* argv[], Framework& framework)
 				default:
 					assert(false);
 			}
-#endif
 		}
 
 	} catch (FrameworkException& e) {
 		Shutdown(e.what(), e.Error());
 	}
 
+}
+
+void Shutdown()
+{
+	Shutdown("", ERR_NONE);
 }
 
 void Shutdown(const char* msg, int error)

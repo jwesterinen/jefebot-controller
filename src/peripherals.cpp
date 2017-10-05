@@ -21,14 +21,14 @@ UserInterface::UserInterface(Framework& framework) : DP_Bb4io(framework)
 Locomotive::Locomotive(Framework& framework, float _defaultSpeed) :
 	DP_Count4(framework, COUNT4), DP_DC2(framework, DC2), direction(STOP), defaultSpeed(_defaultSpeed)
 {
-	ticks[0] = ticks[1] = 0;
-	modes[0] = modes[1] = DP_DC2::BREAK;
-	powers[0] = powers[1] = 0.0;
-
+	// sanity check for default speed
 	if (MinSpeed > defaultSpeed || defaultSpeed > MaxSpeed)
 	{
 		throw FrameworkException("Locomotive speed", ERR_PARAMS);
 	}
+
+	// initialize the continuous tick counters
+	ticks[0] = ticks[1] = 0;
 
 	// register and configure the DP Count4 peripheral
 	framework.Register(this);
@@ -36,65 +36,11 @@ Locomotive::Locomotive(Framework& framework, float _defaultSpeed) :
 	SetEdges(BOTH_EDGES, BOTH_EDGES, DISABLE_EDGE, DISABLE_EDGE);
 	StartDataStream();
 
-	// configure the DP DC2 peripheral
-#ifdef SET_WATCHDOG
+	// configure the DP DC2 peripheral:
+	//   - stopped condition, i.e. modes = BREAK, powers = default
+	//   - watchdog timeout
+	Stop();
 	SetWatchdog(WatchdogTimeout);
-#endif
-}
-
-void Locomotive::Stop()
-{
-    direction = STOP;
-    SetMode(BREAK, BREAK);
-    SetPower(defaultSpeed, defaultSpeed);
-}
-
-// move indefinitely if distance is 0
-void Locomotive::MoveForward(unsigned distance)
-{
-    direction = MOVE_FORWARD;
-    SetMode(FORWARD, FORWARD);
-    if (distance > 0)
-    {
-    	MoveDistance(distance);
-    	Stop();
-    }
-}
-
-// move indefinitely if distance is 0
-void Locomotive::MoveReverse(unsigned distance)
-{
-    direction = MOVE_REVERSE;
-    SetMode(REVERSE, REVERSE);
-    if (distance > 0)
-    {
-    	MoveDistance(distance);
-    	Stop();
-    }
-}
-
-// spin indefinitely if distance is 0
-void Locomotive::SpinCW(float angle)
-{
-    direction = SPIN_CW;
-    SetMode(FORWARD, REVERSE);
-    if (angle > 0)
-    {
-    	MoveAngle(angle);
-    	Stop();
-    }
-}
-
-// spin indefinitely if distance is 0
-void Locomotive::SpinCCW(float angle)
-{
-    direction = SPIN_CCW;
-    SetMode(REVERSE, FORWARD);
-    if (angle > 0)
-    {
-    	MoveAngle(angle);
-    	Stop();
-    }
 }
 
 void Locomotive::SetMode(char modeL, char modeR)
@@ -107,63 +53,139 @@ void Locomotive::SetPower(float powerL, float powerR)
 {
 	if ((MinSpeed <= powerL && powerL <= MaxSpeed) && (MinSpeed <= powerR || powerR <= MaxSpeed))
     {
-	    if (powerL != powers[LEFT])
+	    if (powers[LEFT] != powerL)
 	    {
 	        SetPower0(powers[LEFT] = powerL);
 	    }
-	    if (powerR != powers[RIGHT])
+	    if (powers[RIGHT] != powerR)
 	    {
 	        SetPower1(powers[RIGHT] = powerR);
 	    }
     }
 }
 
-float Locomotive::TicksToRadians(unsigned ticks)
+void Locomotive::Stop()
 {
-	// TODO: use the real equation
-	return 0;
+    direction = STOP;
+    SetMode(BREAK, BREAK);
+    SetPower(defaultSpeed, defaultSpeed);
 }
 
-void Locomotive::MoveAngle(float radians)
+// move indefinitely if distance is 0
+void Locomotive::MoveForward(unsigned distanceInCm)
+{
+    direction = MOVE_FORWARD;
+    SetMode(FORWARD, FORWARD);
+    if (distanceInCm > 0)
+    {
+    	MoveDistance(distanceInCm);
+    	Stop();
+    }
+}
+
+// move indefinitely if distance is 0
+void Locomotive::MoveReverse(unsigned distanceInCm)
+{
+    direction = MOVE_REVERSE;
+    SetMode(REVERSE, REVERSE);
+    if (distanceInCm > 0)
+    {
+    	MoveDistance(distanceInCm);
+    	Stop();
+    }
+}
+
+void Locomotive::MoveDistance(unsigned distanceInCm)
 {
 #ifdef DO_NOT_USE_RANDOM_VALUES
-	if (radians > 0.0)
+	if (distanceInCm > 0)
 	{
 		volatile unsigned ticks;
-		volatile unsigned beginTicks = GetTicks(LEFT);
+		volatile unsigned beginTicks = GetTicks(RIGHT);
 		do
 		{
-			ticks = GetTicks(LEFT);
+			ticks = GetTicks(RIGHT);
+			printf("begin ticks = %d, ticks = %d\n", beginTicks, ticks);
 		}
-		while (TicksToRadians(ticks - beginTicks) < radians);
+		while (TicksToCm(ticks - beginTicks) < distanceInCm);
 	}
 #else
-	usleep(radians);
+	usleep(distanceInCm);
 #endif
 }
 
-float Locomotive::TicksToCm(unsigned ticks)
+// spin indefinitely if distance is 0
+void Locomotive::SpinCW(float angleInRadians)
 {
-	// TODO: use the real equation
-	return 0;
+    direction = SPIN_CW;
+    SetMode(FORWARD, REVERSE);
+    if (angleInRadians > 0)
+    {
+    	MoveAngle(angleInRadians);
+    	Stop();
+    }
 }
 
-void Locomotive::MoveDistance(unsigned cm)
+// spin indefinitely if distance is 0
+void Locomotive::SpinCCW(float angleInRadians)
+{
+    direction = SPIN_CCW;
+    SetMode(REVERSE, FORWARD);
+    if (angleInRadians > 0)
+    {
+    	MoveAngle(angleInRadians);
+    	Stop();
+    }
+}
+
+void Locomotive::MoveAngle(float angleInRadians)
 {
 #ifdef DO_NOT_USE_RANDOM_VALUES
-	if (distance > 0)
+	if (angleInRadians > 0.0)
 	{
 		volatile unsigned ticks;
-		volatile unsigned beginTicks = GetTicks(LEFT);
+		volatile unsigned beginTicks = GetTicks(RIGHT);
 		do
 		{
-			ticks = GetTicks(LEFT);
+			ticks = GetTicks(RIGHT);
 		}
-		while (TicksToDistance(ticks - beginTicks) < distance);
+		while (TicksToRadians(ticks - beginTicks) < angleInRadians);
 	}
 #else
-	usleep(cm);
+	usleep(angleInRadians);
 #endif
+}
+
+#define TICKS_PER_CM 1.9
+
+bool Locomotive::HasMovedDistance(float distanceInCm)
+{
+	static unsigned beginTicks = (unsigned)-1;
+	unsigned targetTicks = (unsigned)(distanceInCm * TICKS_PER_CM);
+
+	if (beginTicks == (unsigned)-1)
+	{
+		beginTicks = GetTicks(RIGHT);
+	}
+printf("begin ticks = %d, ticks = %d\n", beginTicks, GetTicks(RIGHT));
+
+	return ((GetTicks(RIGHT) - beginTicks) >= targetTicks);
+}
+
+#define TICKS_PER_RADIAN 14
+
+bool Locomotive::HasTurnedAngle(float angleInRadians)
+{
+	unsigned targetTicks = angleInRadians * TICKS_PER_RADIAN;
+	static unsigned beginTicks = (unsigned)-1;
+
+	if (beginTicks == (unsigned)-1)
+	{
+		beginTicks = GetTicks(RIGHT);
+	}
+printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, GetTicks(RIGHT));
+
+	return (GetTicks(RIGHT) - beginTicks >= targetTicks);
 }
 
 #define P_LOOP
@@ -199,7 +221,7 @@ void Locomotive::Handler()
 
 		// calculate the proportional component of the power adjustment
 		float P = Kp * err;
-//printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
+printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
 
 		// TODO: I and D components must be calculated per-motor
 		// for now calculate the power adjustment solely based on the proportional component

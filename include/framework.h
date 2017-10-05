@@ -154,6 +154,7 @@ public:
 };
 
 void InitControlProgram(int argc, char* argv[], Framework& framework);
+void Shutdown();
 void Shutdown(const char* msg, int err);
 
 #endif /* INCLUDE_FRAMEWORK_H_ */

@@ -12,6 +12,8 @@
 #include "dp_peripherals.h"
 #include "adc.h"
 
+//#define DO_NOT_USE_RANDOM_VALUES
+
 // DP peripheral list -- this must agree with the output of dplist
 #define BB4IO	"1"		// The buttons and LEDs on the Baseboard
 #define DC2		"2"		// Dual DC motor controller
@@ -44,7 +46,7 @@ class Locomotive : public DP_Count4, public DP_DC2
 {
 private:
 	const static unsigned Count4Period = 50;
-	const static unsigned DC2WatchdogTimeout = 1500;
+	const static unsigned WatchdogTimeout = 0;
 	const static float MinSpeed = 20.0;
 	const static float MaxSpeed = 100.0;
 	const static float MaxVelocityErr = 5.0;
@@ -62,8 +64,10 @@ private:
 	char modes[2];
 	float powers[2];
 
-	float TicksToRadians(unsigned ticks);
+	void MoveDistance(unsigned distanceInCm);
 	float TicksToCm(unsigned ticks);
+	void MoveAngle(float angleInRadians);
+	float TicksToRadians(unsigned ticks);
 
 protected:
 	void Handler();
@@ -91,13 +95,12 @@ public:
 	void SetMode(char modeL, char modeR);
 	void SetPower(float powerL, float powerR);
 	void Stop();
-	void MoveForward(unsigned distance);
-	void MoveReverse(unsigned distance);
-	void SpinCW(float angle);
-	void SpinCCW(float andle);
-	void MoveAngle(float radians);
-	// TODO: what metric to use for distance, cm or in
-	void MoveDistance(unsigned cm);
+	void MoveForward(unsigned distanceInCm);
+	void MoveReverse(unsigned distanceInCm);
+	void SpinCW(float angleInRadians);
+	void SpinCCW(float angleInRadians);
+	bool HasMovedDistance(float distanceInCm);
+	bool HasTurnedAngle(float angleInRadians);
 };
 
 /*
