@@ -18,7 +18,7 @@ ADC::ADC(unsigned _period) : GenericSensor(_period), spiDevId(SPI_DEV_0)
     // init the SPI device and cache the FD
 	if ((fd = InitSPI(spiDevId)) == -1)
     {
-    	throw FrameworkException("ADC", ERR_INITIALIZATION);
+    	throw DP::FrameworkException("ADC", ERR_INITIALIZATION);
     }
 }
 
@@ -43,7 +43,7 @@ void ADC::Routine()
         outbuf[1] = outbuf[2] = outbuf[3] = 0;
         if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) == -1)
         {
-        	throw FrameworkException("ADC", ERR_READ);
+        	throw DP::FrameworkException("ADC", ERR_READ);
         }
         dcode  = ((uint16_t)(inbuf[3]) << 3) & 0x0200;
         dcode += ((uint16_t)(inbuf[3]) << 1) & 0x0100;

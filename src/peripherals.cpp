@@ -8,30 +8,32 @@
 #ifndef DO_NOT_USE_RANDOM_VALUES
 #include <unistd.h>
 #endif
-#include "peripherals.h"
 #include <cstdio>
 #include <cassert>
+#include <dp_events.h>
+#include <dp_peripherals.h>
+#include "peripherals.h"
 
-UserInterface::UserInterface(Framework& framework) : DP_Bb4io(framework)
+UserInterface::UserInterface(DP::EventContext& evtCtx) : DP::BB4IO(evtCtx)
 {
-	framework.Register(this);
+	evtCtx.Register(this);
 	StartDataStream();
 }
 
-Locomotive::Locomotive(Framework& framework, float _defaultSpeed) :
-	DP_Count4(framework, COUNT4), DP_DC2(framework, DC2), direction(STOP), defaultSpeed(_defaultSpeed)
+Locomotive::Locomotive(DP::EventContext& evtCtx, float _defaultSpeed) :
+	DP::COUNT4(evtCtx, COUNT4_IDX), DP::DC2(evtCtx, DC2_IDX), direction(STOP), defaultSpeed(_defaultSpeed)
 {
 	// sanity check for default speed
 	if (MinSpeed > defaultSpeed || defaultSpeed > MaxSpeed)
 	{
-		throw FrameworkException("Locomotive speed", ERR_PARAMS);
+		throw DP::FrameworkException("Locomotive speed", ERR_PARAMS);
 	}
 
 	// initialize the continuous tick counters
 	ticks[0] = ticks[1] = 0;
 
 	// register and configure the DP Count4 peripheral
-	framework.Register(this);
+	evtCtx.Register(this);
 	SetUpdateRate(Count4Period);
 	SetEdges(BOTH_EDGES, BOTH_EDGES, DISABLE_EDGE, DISABLE_EDGE);
 	StartDataStream();
@@ -192,7 +194,7 @@ printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTi
 void Locomotive::Handler()
 {
 	// call the counter's handler to get the current values
-	DP_Count4::Handler();
+	DP::COUNT4::Handler();
 
     // accumulate the ticks
     ticks[LEFT] += (GetMode(LEFT) == FORWARD) ? GetCount(LEFT) : -GetCount(LEFT);
@@ -247,35 +249,35 @@ printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %
 #endif
 }
 
-SinglePingRangeSensor::SinglePingRangeSensor(Framework& framework, int _innerLimit, int _outerLimit) :
-	DP_Ping4(framework, PING4), innerLimit(_innerLimit), outerLimit(_outerLimit)
+SinglePingRangeSensor::SinglePingRangeSensor(DP::EventContext& evtCtx, int _innerLimit, int _outerLimit) :
+	DP::PING4(evtCtx, PING4_IDX), innerLimit(_innerLimit), outerLimit(_outerLimit)
 {
 	if (
 		MinRange > innerLimit || innerLimit > MaxRange ||
 		MinRange > outerLimit || outerLimit > MaxRange
 	)
     {
-    	throw FrameworkException("SinglePingRangeSensor", ERR_PARAMS);
+    	throw DP::FrameworkException("SinglePingRangeSensor", ERR_PARAMS);
     }
 
-	framework.Register(this);
+	evtCtx.Register(this);
 	Enable(SENSOR_0);
 	StartDataStream();
 }
 
 // TODO: change class name to the specific brand/type of sensor
-EdgeDetector::EdgeDetector(Framework& framework, unsigned nominalEdgeLimit) : DP_Adc812(framework, ADC812)
+EdgeDetector::EdgeDetector(DP::EventContext& evtCtx, unsigned nominalEdgeLimit) : DP::ADC812(evtCtx, ADC812_IDX)
 {
 	if (MinEdgeRange > nominalEdgeLimit || nominalEdgeLimit > MaxEdgeRange)
     {
-    	throw FrameworkException("SinglePingRangeSensor", ERR_PARAMS);
+    	throw DP::FrameworkException("SinglePingRangeSensor", ERR_PARAMS);
     }
 	for (int i = 0; i < 3; ++i)
 	{
 		edgeLimits[i] = nominalEdgeLimit;
 	}
 
-	framework.Register(this);
+	evtCtx.Register(this);
 	Config(Period, NO_PAIRS);
 	StartDataStream();
 }
