@@ -8,43 +8,48 @@
 #ifndef PERIPHERALS_H_
 #define PERIPHERALS_H_
 
-#include "framework.h"
-#include "dp_peripherals.h"
+#include <dp_adc812.h>
+#include <dp_bb4io.h>
+#include <dp_count4.h>
+#include <dp_dc2.h>
+#include <dp_ping4.h>
 #include "adc.h"
 
-// DP peripheral list -- this must agree with the output of dplist
-#define BB4IO	"1"		// The buttons and LEDs on the Baseboard
-#define DC2		"2"		// Dual DC motor controller
-#define COUNT4 	"3"		// Quad Event counter
-#define ADC812	"4"   	// Octal 12-bit Analog-to-Digital converter
-#define WS28	"5"	   	// Quad WS2812 LED driver
-#define DC2_2	"6"		// Dual DC motor controller
-#define SERVO4	"7"		// Four servo control pins
-#define IRIO	"8"   	// Consumser IR receiver and transmitter
-#define TIF		"9"   	// Text Interface
-#define PING4 	"10"  	// Quad interface to a Parallax Ping)))
+//#define DO_NOT_USE_RANDOM_VALUES
 
-class UserInterface : public DP_Bb4io
+// DP peripheral list -- this must agree with the output of dplist
+#define BB4IO_IDX	"1"		// The buttons and LEDs on the Baseboard
+#define DC2_IDX		"2"		// Dual DC motor controller
+#define COUNT4_IDX 	"3"		// Quad Event counter
+#define ADC812_IDX	"4"   	// Octal 12-bit Analog-to-Digital converter
+#define WS28_IDX	"5"	   	// Quad WS2812 LED driver
+#define DC2_2_IDX	"6"		// Dual DC motor controller
+#define SERVO4_IDX	"7"		// Four servo control pins
+#define IRIO_IDX	"8"   	// Consumser IR receiver and transmitter
+#define TIF_IDX		"9"   	// Text Interface
+#define PING4_IDX 	"10"  	// Quad interface to a Parallax Ping)))
+
+class UserInterface : public DP::BB4IO
 {
 public:
 	enum BUTTONS {BUTTON1 = S1, BUTTON2 = S2, BUTTON3 = S3};
 
-	UserInterface(Framework& framework);
+	UserInterface(DP::EventContext& evtCtx);
 	void Display(unsigned char pattern)
 	{
 		SetLeds(pattern);
 	}
 	bool IsButtonPressed(enum BUTTONS buttonId)
 	{
-		return DP_Bb4io::IsButtonPressed(buttonId);
+		return DP::BB4IO::IsButtonPressed(buttonId);
 	}
 };
 
-class Locomotive : public DP_Count4, public DP_DC2
+class Locomotive : public DP::COUNT4, public DP::DC2
 {
 private:
 	const static unsigned Count4Period = 50;
-	const static unsigned DC2WatchdogTimeout = 1500;
+	const static unsigned WatchdogTimeout = 0;
 	const static float MinSpeed = 20.0;
 	const static float MaxSpeed = 100.0;
 	const static float MaxVelocityErr = 5.0;
@@ -62,8 +67,10 @@ private:
 	char modes[2];
 	float powers[2];
 
-	float TicksToRadians(unsigned ticks);
+	void MoveDistance(unsigned distanceInCm);
 	float TicksToCm(unsigned ticks);
+	void MoveAngle(float angleInRadians);
+	float TicksToRadians(unsigned ticks);
 
 protected:
 	void Handler();
@@ -71,7 +78,7 @@ protected:
 public:
 	enum SIDE {LEFT = 0, RIGHT};
 
-	Locomotive(Framework& framework, float defaultSpeed);
+	Locomotive(DP::EventContext& evtCtx, float defaultSpeed);
 	~Locomotive()
 	{
 		//delete motors;
@@ -91,29 +98,28 @@ public:
 	void SetMode(char modeL, char modeR);
 	void SetPower(float powerL, float powerR);
 	void Stop();
-	void MoveForward(unsigned distance);
-	void MoveReverse(unsigned distance);
-	void SpinCW(float angle);
-	void SpinCCW(float andle);
-	void MoveAngle(float radians);
-	// TODO: what metric to use for distance, cm or in
-	void MoveDistance(unsigned cm);
+	void MoveForward(unsigned distanceInCm);
+	void MoveReverse(unsigned distanceInCm);
+	void SpinCW(float angleInRadians);
+	void SpinCCW(float angleInRadians);
+	bool HasMovedDistance(float distanceInCm);
+	bool HasTurnedAngle(float angleInRadians);
 };
 
 /*
  *  The RangeSensor class is based on a DP_Ping4 peripheral with a single sensor, SENSOR_0.
  */
-class SinglePingRangeSensor : public DP_Ping4
+class SinglePingRangeSensor : public DP::PING4
 {
 private:
 	unsigned innerLimit;
 	unsigned outerLimit;
 
 public:
-	SinglePingRangeSensor(Framework& framework, int _innerLimit, int _outerLimit);
+	SinglePingRangeSensor(DP::EventContext& evtCtx, int _innerLimit, int _outerLimit);
 	unsigned GetDistance()
 	{
-		return DP_Ping4::GetDistance(SENSOR_0);
+		return DP::PING4::GetDistance(SENSOR_0);
 	}
 	bool AtObject()
 	{
@@ -126,7 +132,7 @@ public:
 };
 
 // edge detector based on 3 Sharp GP2Y0A21YK0F distance sensors
-class EdgeDetector : public DP_Adc812
+class EdgeDetector : public DP::ADC812
 {
 private:
 	const static unsigned Period = 50;
@@ -143,7 +149,7 @@ public:
 #endif
 	enum EDGE_SENSORS {LEFT = CHANNEL_1, FRONT = CHANNEL_2, RIGHT = CHANNEL_3};
 
-	EdgeDetector(Framework& framework, unsigned nominalEdgeLimit);
+	EdgeDetector(DP::EventContext& evtCtx, unsigned nominalEdgeLimit);
 	bool AtAnyEdge()
 	{
 		return AtEdge(LEFT) || AtEdge(FRONT) || AtEdge(RIGHT);
@@ -178,9 +184,9 @@ public:
 class VoltMeter : public ADC
 {
 public:
-	VoltMeter(Framework& framework) : ADC(50)
+	VoltMeter(DP::EventContext& evtCtx) : ADC(50)
 	{
-		framework.Register(this);
+		evtCtx.Register(this);
 	}
 };
 

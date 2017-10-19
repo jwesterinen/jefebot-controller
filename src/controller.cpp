@@ -85,18 +85,31 @@ void RoamController::Routine()
 		case AVOID_EDGE:
 			if (edgeDetector.AtEdge(EdgeDetector::LEFT))
 			{
+#ifdef DO_NOT_USE_RANDOM_VALUES
+				locomotive.Stop();
+				BackUp(10);
+				locomotive.Stop();
+				locomotive.SpinCW(M_PI/2);
+#else
 				locomotive.Stop();
 				BackUp(300000);
 				locomotive.Stop();
 				locomotive.SpinCW(RANDOM_VALUE);
+#endif
 			}
 			else if (edgeDetector.AtEdge(EdgeDetector::FRONT))
 			{
+#ifdef DO_NOT_USE_RANDOM_VALUES
+				locomotive.Stop();
+				BackUp(10);
+				locomotive.Stop();
+				locomotive.SpinCW(M_PI/2);
+#else
 // TODO: check for simultaneous left and right edges
 #ifdef DETECT_BOTH_EDGES
 				while (edgeDetector.AtEdge(EdgeDetector::LEFT) && edgeDetector.AtEdge(EdgeDetector::RIGHT))
 				{
-					BackUp(RANDOM_VALUE);
+					???
 				}
 #endif
 				if (edgeDetector.AtEdge(EdgeDetector::LEFT))
@@ -113,13 +126,21 @@ void RoamController::Routine()
 					locomotive.Stop();
 					locomotive.SpinCCW(RANDOM_VALUE);
 				}
+#endif
 			}
 			else if (edgeDetector.AtEdge(EdgeDetector::RIGHT))
 			{
+#ifdef DO_NOT_USE_RANDOM_VALUES
+				locomotive.Stop();
+				BackUp(10);
+				locomotive.Stop();
+				locomotive.SpinCCW(M_PI/2);
+#else
 				locomotive.Stop();
 				BackUp(300000);
 				locomotive.Stop();
 				locomotive.SpinCCW(RANDOM_VALUE);
+#endif
 			}
 			locomotive.MoveForward(0);
 			state = ROAM;
@@ -127,14 +148,15 @@ void RoamController::Routine()
 			break;
 
 		case AVOID_OBJECT:
-// TODO: check for simultaneous left and right edges
-#ifdef DETECT_BOTH_EDGES
-			while (edgeDetector.AtEdge(EdgeDetector::LEFT) && edgeDetector.AtEdge(EdgeDetector::RIGHT))
-			{
-				BackUp(RANDOM_VALUE);
-			}
-#endif
+#ifdef DO_NOT_USE_RANDOM_VALUES
+			locomotive.Stop();
+			BackUp(10);
+			locomotive.Stop();
+			locomotive.SpinCW(M_PI);
+			locomotive.Stop();
+#else
 			(edgeDetector.AtEdge(EdgeDetector::LEFT)) ? locomotive.SpinCW(RANDOM_VALUE) : locomotive.SpinCCW(RANDOM_VALUE);
+#endif
 			locomotive.MoveForward(0);
 			state = ROAM;
 			if (isVerbose) printf("changing state to ROAM\n");
@@ -165,7 +187,7 @@ void GotoObjectController::Routine()
 			if (rangeSensor.DetectObject(&distance))
 			{
 				// get the tick count
-				tickCount = locomotive.GetTicks(Locomotive::LEFT);
+				tickCount = locomotive.GetTicks(Locomotive::RIGHT);
 				targetCount = tickCount;
 				state = MEASURE_OBJECT;
 				if (isVerbose)
@@ -184,7 +206,7 @@ void GotoObjectController::Routine()
 				int tickDelta;
 
 				locomotive.Stop();
-				tickCount = locomotive.GetTicks(Locomotive::LEFT);
+				tickCount = locomotive.GetTicks(Locomotive::RIGHT);
 				if (isVerbose)
 				{
 					printf("TickCount = %d\n", tickCount);
@@ -207,10 +229,10 @@ void GotoObjectController::Routine()
 
 		case ADJUST_POSITION:
 			// continue until the tick count is less than the target
-			tickCount = locomotive.GetTicks(Locomotive::LEFT);
+			tickCount = locomotive.GetTicks(Locomotive::RIGHT);
 			if (tickCount <= targetCount)
 			{
-				// the middle of the object has bee found so go to it
+				// the middle of the object has been found so go to it
 				locomotive.Stop();
 				if (isVerbose)
 				{
@@ -261,7 +283,7 @@ void GotoObjectController::Routine()
 
 		case PUSH_OBJECT:
 			// FIXME: why are edges spuriously found?
-#if 0
+#if 1
 			if (edgeDetector.AtAnyEdge())
 			{
 				if (isVerbose)

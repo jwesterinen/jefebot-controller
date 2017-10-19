@@ -10,7 +10,7 @@
 //#define TRIM 3
 //#define TRIM 0
 
-class Controller : public Callback
+class Controller : public DP::Callback
 {
 private:
     time_t t;

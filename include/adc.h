@@ -8,11 +8,11 @@
 #ifndef INCLUDE_ADC_H_
 #define INCLUDE_ADC_H_
 
-#include "framework.h"
+#include "dp_events.h"
 
 #define SPI_DEV_0 "/dev/spidev0.0"
 
-class ADC : public GenericSensor
+class ADC : public DP::GenericSensor
 {
 private:
 	const char *spiDevId;
