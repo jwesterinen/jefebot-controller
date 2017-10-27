@@ -32,7 +32,8 @@
 #include <cassert>
 #include <unistd.h>
 #include <getopt.h>
-#include "controller.h"
+#include "roam_controller.h"
+#include "goto_object_controller.h"
 
 // control program errors
 #define ERR_CONTROLLER_MODE		-2001
@@ -58,10 +59,8 @@
 #else
 #define DEFAULT_EDGE_LIMIT 1000
 #endif
-//#define DEFAULT_INNER_LIMIT 40
-#define DEFAULT_INNER_LIMIT 35
-//#define DEFAULT_OUTER_LIMIT 260
-#define DEFAULT_OUTER_LIMIT 300
+#define DEFAULT_INNER_LIMIT 40
+#define DEFAULT_OUTER_LIMIT 1000
 
 // controller modes, i.e. behaviors
 enum CONTROLLER_MODE {CM_ROAM, CM_GOTO_OBJECT, CM_GOTO_GOAL};
@@ -172,7 +171,7 @@ BEGIN_PERIODIC_ROUTINE(MoveDistance)
 
 	try
 	{
-		locomotive->MoveForward(0);
+		locomotive->MoveForward();
 		if (locomotive->HasMovedDistance(options.distanceToMove))
 		{
 			Shutdown();
@@ -189,7 +188,7 @@ BEGIN_PERIODIC_ROUTINE(SpinAngle)
 
 	try
 	{
-		locomotive->SpinCCW(0);
+		locomotive->SpinCCW();
 		if (locomotive->HasTurnedAngle(options.angleToSpin))
 		{
 			Shutdown();

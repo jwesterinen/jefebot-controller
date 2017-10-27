@@ -2,13 +2,11 @@
 #define INCLUDE_CONTROLLER_H_
 
 #include "peripherals.h"
-
-// TODO: make turning actually use odometry to figure out radians
+#ifndef DO_NOT_USE_RANDOM_VALUES
+#include <cstdlib>
 #define RANDOM_VALUE ((rand() % 8) * 100000)
-
-#define TRIM 2
-//#define TRIM 3
-//#define TRIM 0
+#endif
+#define PI 3.14
 
 class Controller : public DP::Callback
 {
@@ -22,12 +20,14 @@ protected:
 	EdgeDetector& edgeDetector;
 	SinglePingRangeSensor& rangeSensor;
 	bool isVerbose;
+	int distanceToMove;
+	float angleToMove;
 
 #if 0
 	virtual void TurnRight(float radians);
 	virtual void TurnLeft(float radians);
-#endif
 	virtual void BackUp(unsigned distance);
+#endif
 
 public:
 	struct Context
@@ -47,34 +47,6 @@ public:
 
 	Controller(Context& ctx, bool _isVerbose);
 	virtual ~Controller()
-	{}
-};
-
-class RoamController : public Controller
-{
-private:
-	enum STATE {ROAM, AVOID_EDGE, AVOID_OBJECT} state;
-
-protected:
-	void Routine();
-
-public:
-	RoamController(Context& ctx, bool isVerbose);
-	~RoamController()
-	{}
-};
-
-class GotoObjectController : public Controller
-{
-private:
-	enum STATE {FIND_OBJECT, MEASURE_OBJECT, ADJUST_POSITION, GOTO_OBJECT, PUSH_OBJECT, AVOID_EDGE} state;
-
-protected:
-	void Routine();
-
-public:
-	GotoObjectController(Context& ctx, bool isVerbose);
-	~GotoObjectController()
 	{}
 };
 

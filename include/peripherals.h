@@ -15,7 +15,7 @@
 #include <dp_ping4.h>
 #include "adc.h"
 
-//#define DO_NOT_USE_RANDOM_VALUES
+#define DO_NOT_USE_RANDOM_VALUES
 
 // DP peripheral list -- this must agree with the output of dplist
 #define BB4IO_IDX	"1"		// The buttons and LEDs on the Baseboard
@@ -53,7 +53,9 @@ private:
 	const static float MinSpeed = 20.0;
 	const static float MaxSpeed = 100.0;
 	const static float MaxVelocityErr = 5.0;
-	const static unsigned RadiansPerTick = 0;
+	const static unsigned TicksPerCM = 2;
+	const static unsigned TicksPerRadian = 14;
+
 
     // TODO: tweak, tweak, tweak !!!
 	// PID controller gains
@@ -95,15 +97,16 @@ public:
 	{
 		return powers[index];
 	}
+	void ClearTicks();
 	void SetMode(char modeL, char modeR);
 	void SetPower(float powerL, float powerR);
 	void Stop();
-	void MoveForward(unsigned distanceInCm);
-	void MoveReverse(unsigned distanceInCm);
-	void SpinCW(float angleInRadians);
-	void SpinCCW(float angleInRadians);
-	bool HasMovedDistance(float distanceInCm);
-	bool HasTurnedAngle(float angleInRadians);
+	void MoveForward();
+	void MoveReverse();
+	void SpinCW();
+	void SpinCCW();
+	bool HasMovedDistance(unsigned distanceInCm, unsigned* curDistance = 0);
+	bool HasTurnedAngle(float angleInRadians, float* curAngle = 0);
 };
 
 /*
@@ -125,9 +128,13 @@ public:
 	{
 	    return (GetDistance() < innerLimit);
 	}
-	bool DetectObject(unsigned* pDistance)
+	bool DetectObject(unsigned limit, unsigned* pDistance)
 	{
-	    return ((*pDistance = GetDistance()) < outerLimit);
+		if (limit == 0)
+		{
+			limit = outerLimit;
+		}
+	    return ((*pDistance = GetDistance()) < limit);
 	}
 };
 
@@ -150,10 +157,7 @@ public:
 	enum EDGE_SENSORS {LEFT = CHANNEL_1, FRONT = CHANNEL_2, RIGHT = CHANNEL_3};
 
 	EdgeDetector(DP::EventContext& evtCtx, unsigned nominalEdgeLimit);
-	bool AtAnyEdge()
-	{
-		return AtEdge(LEFT) || AtEdge(FRONT) || AtEdge(RIGHT);
-	}
+	bool AtAnyEdge(enum EDGE_SENSORS* pEdge = 0);
 	// TODO: change from using voltage to distance for values and limits
 #ifdef USE_DISTANCE_NOT_VOLTAGE
 	bool AtEdge(enum EDGE_SENSORS sensorId)

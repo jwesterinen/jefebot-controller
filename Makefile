@@ -11,8 +11,8 @@ LIBS = -lm -ldp-framework
 CPPFLAGS = $(INCLUDES) -O0 -g -Wall -c
 LFLAGS = -L../dp-framework/lib
 
-HEADERS = $(INC)/peripherals.h $(INC)/controller.h $(INC)/adc.h
-OBJECTS = $(OBJ)/peripherals.o $(OBJ)/controller.o $(OBJ)/adc.o $(OBJ)/jefebot.o
+HEADERS = $(INC)/peripherals.h $(INC)/adc.h $(INC)/controller.h $(INC)/roam_controller.h $(INC)/goto_object_controller.h
+OBJECTS = $(OBJ)/jefebot.o $(OBJ)/peripherals.o $(OBJ)/adc.o $(OBJ)/controller.o $(OBJ)/roam_controller.o $(OBJ)/goto_object_controller.o
 
 .PHONY: all
 all: $(TARGET)

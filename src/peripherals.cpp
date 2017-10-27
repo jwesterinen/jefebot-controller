@@ -30,7 +30,7 @@ Locomotive::Locomotive(DP::EventContext& evtCtx, float _defaultSpeed) :
 	}
 
 	// initialize the continuous tick counters
-	ticks[0] = ticks[1] = 0;
+	ClearTicks();
 
 	// register and configure the DP Count4 peripheral
 	evtCtx.Register(this);
@@ -45,6 +45,11 @@ Locomotive::Locomotive(DP::EventContext& evtCtx, float _defaultSpeed) :
 	SetWatchdog(WatchdogTimeout);
 }
 
+void Locomotive::ClearTicks()
+{
+	ticks[0] = ticks[1] = 0;
+
+}
 void Locomotive::SetMode(char modeL, char modeR)
 {
 	SetMode0(modes[LEFT] = modeL);
@@ -73,121 +78,91 @@ void Locomotive::Stop()
     SetPower(defaultSpeed, defaultSpeed);
 }
 
-// move indefinitely if distance is 0
-void Locomotive::MoveForward(unsigned distanceInCm)
+void Locomotive::MoveForward()
 {
     direction = MOVE_FORWARD;
     SetMode(FORWARD, FORWARD);
-    if (distanceInCm > 0)
-    {
-    	MoveDistance(distanceInCm);
-    	Stop();
-    }
 }
 
-// move indefinitely if distance is 0
-void Locomotive::MoveReverse(unsigned distanceInCm)
+void Locomotive::MoveReverse()
 {
     direction = MOVE_REVERSE;
     SetMode(REVERSE, REVERSE);
-    if (distanceInCm > 0)
-    {
-    	MoveDistance(distanceInCm);
-    	Stop();
-    }
 }
 
-void Locomotive::MoveDistance(unsigned distanceInCm)
-{
-#ifdef DO_NOT_USE_RANDOM_VALUES
-	if (distanceInCm > 0)
-	{
-		volatile unsigned ticks;
-		volatile unsigned beginTicks = GetTicks(RIGHT);
-		do
-		{
-			ticks = GetTicks(RIGHT);
-			printf("begin ticks = %d, ticks = %d\n", beginTicks, ticks);
-		}
-		while (TicksToCm(ticks - beginTicks) < distanceInCm);
-	}
-#else
-	usleep(distanceInCm);
-#endif
-}
-
-// spin indefinitely if distance is 0
-void Locomotive::SpinCW(float angleInRadians)
+void Locomotive::SpinCW()
 {
     direction = SPIN_CW;
     SetMode(FORWARD, REVERSE);
-    if (angleInRadians > 0)
-    {
-    	MoveAngle(angleInRadians);
-    	Stop();
-    }
 }
 
-// spin indefinitely if distance is 0
-void Locomotive::SpinCCW(float angleInRadians)
+void Locomotive::SpinCCW()
 {
     direction = SPIN_CCW;
     SetMode(REVERSE, FORWARD);
-    if (angleInRadians > 0)
-    {
-    	MoveAngle(angleInRadians);
-    	Stop();
-    }
 }
 
-void Locomotive::MoveAngle(float angleInRadians)
+bool Locomotive::HasMovedDistance(unsigned distanceInCm, unsigned* pCurDistance)
 {
-#ifdef DO_NOT_USE_RANDOM_VALUES
-	if (angleInRadians > 0.0)
+	static bool isMoving = false;
+	static int beginTicks = 0;
+	int targetTicks = distanceInCm * TicksPerCM;
+	int ticks = (direction == MOVE_FORWARD) ? GetTicks(RIGHT) : -GetTicks(RIGHT);
+
+	if (!isMoving)
 	{
-		volatile unsigned ticks;
-		volatile unsigned beginTicks = GetTicks(RIGHT);
-		do
-		{
-			ticks = GetTicks(RIGHT);
-		}
-		while (TicksToRadians(ticks - beginTicks) < angleInRadians);
+		beginTicks = ticks;
+		isMoving = true;
 	}
-#else
-	usleep(angleInRadians);
-#endif
+
+	// set the current distance
+	if (pCurDistance)
+	{
+		*pCurDistance = ticks / TicksPerCM;
+	}
+
+printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, ticks);
+
+	// return true if the distance has been met and cancel a distance measurement
+	if (ticks - beginTicks >= targetTicks)
+	{
+		isMoving = false;
+		return true;
+	}
+
+	return false;
 }
 
-#define TICKS_PER_CM 1.9
-
-bool Locomotive::HasMovedDistance(float distanceInCm)
+bool Locomotive::HasTurnedAngle(float angleInRadians, float* pCurAngle)
 {
-	static unsigned beginTicks = (unsigned)-1;
-	unsigned targetTicks = (unsigned)(distanceInCm * TICKS_PER_CM);
+	static bool isTurning = false;
+	static int beginTicks = 0;
+	int targetTicks = angleInRadians * TicksPerRadian;
+	int ticks = GetTicks((direction == SPIN_CW) ? LEFT : RIGHT);
 
-	if (beginTicks == (unsigned)-1)
+	// establish the beginning tick count if necessary
+	if (!isTurning)
 	{
-		beginTicks = GetTicks(RIGHT);
+		beginTicks = ticks;
+		isTurning = true;
 	}
-printf("begin ticks = %d, ticks = %d\n", beginTicks, GetTicks(RIGHT));
 
-	return ((GetTicks(RIGHT) - beginTicks) >= targetTicks);
-}
-
-#define TICKS_PER_RADIAN 14
-
-bool Locomotive::HasTurnedAngle(float angleInRadians)
-{
-	unsigned targetTicks = angleInRadians * TICKS_PER_RADIAN;
-	static unsigned beginTicks = (unsigned)-1;
-
-	if (beginTicks == (unsigned)-1)
+	// set the current angle
+	if (pCurAngle)
 	{
-		beginTicks = GetTicks(RIGHT);
+		*pCurAngle = ticks / TicksPerRadian;
 	}
-printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, GetTicks(RIGHT));
 
-	return (GetTicks(RIGHT) - beginTicks >= targetTicks);
+//printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, ticks);
+
+	// return true if the angle has been met and cancel an angle measurement
+	if (ticks - beginTicks >= targetTicks)
+	{
+		isTurning = false;
+		return true;
+	}
+
+	return false;
 }
 
 #define P_LOOP
@@ -223,7 +198,7 @@ void Locomotive::Handler()
 
 		// calculate the proportional component of the power adjustment
 		float P = Kp * err;
-printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
+//printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
 
 		// TODO: I and D components must be calculated per-motor
 		// for now calculate the power adjustment solely based on the proportional component
@@ -282,3 +257,35 @@ EdgeDetector::EdgeDetector(DP::EventContext& evtCtx, unsigned nominalEdgeLimit) 
 	StartDataStream();
 }
 
+bool EdgeDetector::AtAnyEdge(enum EDGE_SENSORS* pEdge)
+{
+	if (AtEdge(LEFT))
+	{
+		if (pEdge)
+		{
+			*pEdge = LEFT;
+		}
+		return true;
+	}
+// TODO: replace the front edge sensor
+#ifdef FRONT_SENSOR_WORKS
+	else if (AtEdge(FRONT))
+	{
+		if (pEdge)
+		{
+			*pEdge = FRONT;
+		}
+		return true;
+	}
+#endif
+	else if (AtEdge(RIGHT))
+	{
+		if (pEdge)
+		{
+			*pEdge = RIGHT;
+		}
+		return true;
+	}
+
+	return false;
+}
