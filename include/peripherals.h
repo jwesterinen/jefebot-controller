@@ -15,8 +15,6 @@
 #include <dp_ping4.h>
 #include "adc.h"
 
-#define DO_NOT_USE_RANDOM_VALUES
-
 // DP peripheral list -- this must agree with the output of dplist
 #define BB4IO_IDX	"1"		// The buttons and LEDs on the Baseboard
 #define DC2_IDX		"2"		// Dual DC motor controller
@@ -68,11 +66,6 @@ private:
 	int ticks[2];			// total accumulated count -- must be signed, +/- -> fwd/rev
 	char modes[2];
 	float powers[2];
-
-	void MoveDistance(unsigned distanceInCm);
-	float TicksToCm(unsigned ticks);
-	void MoveAngle(float angleInRadians);
-	float TicksToRadians(unsigned ticks);
 
 protected:
 	void Handler();

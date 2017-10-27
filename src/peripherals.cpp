@@ -5,9 +5,6 @@
  *      Author: jeff
  */
 
-#ifndef DO_NOT_USE_RANDOM_VALUES
-#include <unistd.h>
-#endif
 #include <cstdio>
 #include <cassert>
 #include <dp_events.h>
@@ -121,7 +118,8 @@ bool Locomotive::HasMovedDistance(unsigned distanceInCm, unsigned* pCurDistance)
 		*pCurDistance = ticks / TicksPerCM;
 	}
 
-printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, ticks);
+	// debug print
+	//printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, ticks);
 
 	// return true if the distance has been met and cancel a distance measurement
 	if (ticks - beginTicks >= targetTicks)
@@ -153,7 +151,8 @@ bool Locomotive::HasTurnedAngle(float angleInRadians, float* pCurAngle)
 		*pCurAngle = ticks / TicksPerRadian;
 	}
 
-//printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, ticks);
+	// debug print
+	//printf("target ticks = %d, begin ticks = %d, ticks = %d\n", targetTicks, beginTicks, ticks);
 
 	// return true if the angle has been met and cancel an angle measurement
 	if (ticks - beginTicks >= targetTicks)
@@ -175,7 +174,6 @@ void Locomotive::Handler()
     ticks[LEFT] += (GetMode(LEFT) == FORWARD) ? GetCount(LEFT) : -GetCount(LEFT);
     ticks[RIGHT] += (GetMode(RIGHT) == FORWARD) ? GetCount(RIGHT) : -GetCount(RIGHT);
 
-#ifdef P_LOOP
     // PID controller
 
     if (direction == MOVE_FORWARD && GetInterval(LEFT) != 0 && GetInterval(RIGHT) != 0)
@@ -198,30 +196,21 @@ void Locomotive::Handler()
 
 		// calculate the proportional component of the power adjustment
 		float P = Kp * err;
-//printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
+		// debug pring
+		//printf("Velocity: LEFT: %u ticks / %f sec = %f t/s  RIGHT: %u ticks / %f sec = %f t/s   err = %f, P = %f\n", countL, intvlL, vl, countR, intvlR, vr, err, P);
 
 		// TODO: I and D components must be calculated per-motor
 		// for now calculate the power adjustment solely based on the proportional component
-#if 1//def POWER_ADJ
 		float powerL = GetPower(LEFT);
 		float powerR = GetPower(RIGHT);
 		float adjL = (P/2) * powerL;
 		float adjR = (P/2) * powerR;
 		float newPwrL = powerL - adjL;
 		float newPwrR = powerR - adjR;
-//printf("Power: LEFT: %f - %f = %f  RIGHT: %f - %f = %f \n", powerL, adjL, newPwrL, powerR, adjL, newPwrL);
+		// debug print
+		//printf("Power: LEFT: %f - %f = %f  RIGHT: %f - %f = %f \n", powerL, adjL, newPwrL, powerR, adjL, newPwrL);
 		SetPower(newPwrL, newPwrR);
-#endif
     }
-#else
-    // simple balancing of the motor speeds
-    if (direction == MOVE_FORWARD)
-    {
-    	float newSpeed = GetSpeed(LEFT);
-    	newSpeed = (GetCount(LEFT) > GetCount(RIGHT)) ? newSpeed - 0.1 : newSpeed + 0.1;
-		SetSpeed(LEFT, newSpeed);
-    }
-#endif
 }
 
 SinglePingRangeSensor::SinglePingRangeSensor(DP::EventContext& evtCtx, int _innerLimit, int _outerLimit) :
@@ -267,8 +256,6 @@ bool EdgeDetector::AtAnyEdge(enum EDGE_SENSORS* pEdge)
 		}
 		return true;
 	}
-// TODO: replace the front edge sensor
-#ifdef FRONT_SENSOR_WORKS
 	else if (AtEdge(FRONT))
 	{
 		if (pEdge)
@@ -277,7 +264,6 @@ bool EdgeDetector::AtAnyEdge(enum EDGE_SENSORS* pEdge)
 		}
 		return true;
 	}
-#endif
 	else if (AtEdge(RIGHT))
 	{
 		if (pEdge)

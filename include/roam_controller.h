@@ -7,9 +7,6 @@ class RoamController : public Controller
 {
 private:
 	enum STATE {ROAM, BACKUP, AVOID_EDGE, TURN} state;
-	enum EdgeDetector::EDGE_SENSORS edge;
-	unsigned distance;
-	float angle;
 
 protected:
 	void Routine();

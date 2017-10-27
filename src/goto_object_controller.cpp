@@ -20,6 +20,7 @@ GotoObjectController::GotoObjectController(Context& ctx, bool isVerbose) :
 		Controller(ctx, isVerbose), state(ESTABLISH_RANGE), objDistance(-1)
 {
 	if (isVerbose) printf("changing state to ESTABLISH_RANGE\n");
+	angleToTurn = 2*PI;
 	locomotive.SpinCW();
 	ui.Display(0x02);
 }
@@ -32,7 +33,7 @@ void GotoObjectController::Routine()
 	switch (state)
 	{
 		case ESTABLISH_RANGE:
-			if (!locomotive.HasTurnedAngle(6.5))
+			if (!locomotive.HasTurnedAngle(angleToTurn))
 			{
 				if (rangeSensor.DetectObject(0, &distance))
 				{
@@ -92,6 +93,7 @@ void GotoObjectController::Routine()
 					printf("TargetCount = %d\n", targetCount);
 				}
 				// TODO: change to a specific amount of angle to spin to eliminate the adjust position state
+				//       -- this will require much more accurate odometry
 				locomotive.SpinCCW();
 				state = ADJUST_POSITION;
 				if (isVerbose)
@@ -113,8 +115,8 @@ void GotoObjectController::Routine()
 					printf("TickCount = %d\n", tickCount);
 				}
 				locomotive.MoveForward();
-				state = GOTO_OBJECT;
 				if (isVerbose) printf("changing state to GOTO_OBJECT\n");
+				state = GOTO_OBJECT;
 			}
 			break;
 
@@ -141,50 +143,37 @@ void GotoObjectController::Routine()
 			}
 			else if (edgeDetector.AtAnyEdge())
 			{
-				locomotive.Stop();
+				if (isVerbose) printf("changing state to AVOID_EDGE\n");
 				state = AVOID_EDGE;
-				if (isVerbose)
-				{
-					printf("edge found:\n");
-					printf("  left sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::LEFT));
-					printf("  front sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::FRONT));
-					printf("  right sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::RIGHT));
-					printf("changing state to AVOID_EDGE\n");
-				}
 			}
 			break;
 
 		case PUSH_OBJECT:
-			if (!rangeSensor.AtObject())
+			if (edgeDetector.AtAnyEdge(&edge))
 			{
-				if (isVerbose)
+				switch (edge)
 				{
-					printf("object lost at distance %d\n", rangeSensor.GetDistance());
-				}
-				Shutdown("objective achieved...\n", 0);
-			}
-			else if (edgeDetector.AtAnyEdge())
-			{
-				locomotive.Stop();
-				Shutdown("edge detected", 0);
-				if (isVerbose)
-				{
-					printf("edge found:\n");
-					printf("  left sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::LEFT));
-					printf("  front sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::FRONT));
-					printf("  right sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::RIGHT));
+					case EdgeDetector::FRONT:
+						Shutdown("objective achieved...\n", 0);
+						break;
+					default:
+						if (isVerbose) printf("changing state to AVOID_EDGE\n");
+						state = AVOID_EDGE;
+						break;
 				}
 			}
 			break;
 
 		case AVOID_EDGE:
-// TODO: need better avoidance
-#ifdef BETTER_AVOIDANCE
-			BackUp(300);
-#endif
-			locomotive.SpinCW();
-			state = FIND_OBJECT;
-			if (isVerbose) printf("changing state to FIND_OBJECT\n");
+			if (isVerbose)
+			{
+				printf("edge found -- shutting down...:\n");
+				printf("  left sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::LEFT));
+				printf("  front sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::FRONT));
+				printf("  right sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::RIGHT));
+			}
+			locomotive.Stop();
+			Shutdown("edge detected", 0);
 			break;
 
 		default:

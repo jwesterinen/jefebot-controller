@@ -12,7 +12,7 @@
 #include "roam_controller.h"
 
 RoamController::RoamController(Context& ctx, bool isVerbose) :
-	Controller(ctx, isVerbose), state(ROAM), edge(EdgeDetector::LEFT), distance(0), angle(0.0)
+	Controller(ctx, isVerbose), state(ROAM)
 
 {
 	if (isVerbose) printf("changing state to ROAM\n");
@@ -36,7 +36,7 @@ void RoamController::Routine()
 				}
 				if (isVerbose) printf("changing state to BACKUP\n");
 				locomotive.Stop();
-				distance = 3;
+				distanceToMove = 3;
 				locomotive.MoveReverse();
 				state = BACKUP;
 			}
@@ -44,7 +44,7 @@ void RoamController::Routine()
 			{
 				edge = EdgeDetector::FRONT;
 				locomotive.Stop();
-				distance = 3;
+				distanceToMove = 3;
 				locomotive.MoveReverse();
 				if (isVerbose) printf("changing state to BACKUP\n");
 				state = BACKUP;
@@ -52,7 +52,7 @@ void RoamController::Routine()
 			break;
 
 		case BACKUP:
-			if (locomotive.HasMovedDistance(distance))
+			if (locomotive.HasMovedDistance(distanceToMove))
 			{
 				if (isVerbose) printf("changing state to AVOID_EDGE\n");
 				state = AVOID_EDGE;
@@ -64,19 +64,19 @@ void RoamController::Routine()
 			switch (edge)
 			{
 				case EdgeDetector::LEFT:
-					angle = 0.8;
+					angleToTurn = 0.8;
 					locomotive.SpinCW();
 					break;
 				case EdgeDetector::RIGHT:
-					angle = 0.8;
+					angleToTurn = 0.8;
 					locomotive.SpinCCW();
 					break;
 				case EdgeDetector::FRONT:
-					angle = 1.6;
+					angleToTurn = 1.6;
 					locomotive.SpinCCW();
 					break;
 				default:
-					angle = 1.6;
+					angleToTurn = 1.6;
 					locomotive.SpinCCW();
 					break;
 			}
@@ -85,7 +85,7 @@ void RoamController::Routine()
 			break;
 
 		case TURN:
-			if (locomotive.HasTurnedAngle(angle))
+			if (locomotive.HasTurnedAngle(angleToTurn))
 			{
 				locomotive.Stop();
 				locomotive.MoveForward();
