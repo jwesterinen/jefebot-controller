@@ -154,6 +154,7 @@ void GotoObjectController::Routine()
 				switch (edge)
 				{
 					case EdgeDetector::FRONT:
+						locomotive.Stop();
 						Shutdown("objective achieved...\n", 0);
 						break;
 					default:
