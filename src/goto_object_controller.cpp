@@ -1,19 +1,28 @@
 /*
  * goto_object_controller.c
  * 
- * Description:  This is the controller for jefebot.
- *   There are two modes that are selectable by the buttons and command line options:
- *     1. Roam: In this mode the jefebot moves forward until it detects an edge
- *        then avoids it and continues to move forward.
- *     2. GoToObject: In this mode the jefebot spins until it detects an object
- *        then it moves towards the object and stops when it arrives.
+ * Description:  This is the "go to object" controller for jefebot.  In this mode, jefebot
+ *   will find an object on the table, go to it, and push it off.  The algorithm is as follows:
+ *   1. Spin one complete revolution CW to find the closest object within bounds and save the distance.
+ *   2. Spin CW until the object is first detected again and save this "found" tick count.  
+ *   3. Continue to spin CW until the object is lost and save that "lost" tick count. Calculate 
+ *      the tick count to spin CCW to point to the theoretical middle of the object by spliting
+ *      the difference of the "lost" and "found" tick counts.
+ *   4. Spin CCW by the amount calculated in step 3 to point to the middle of the object.
+ *   5. Move forward to the object all the time making sure the object doesn't get lost, due to 
+ *      the bot's drifting off course, or doesn't encounter an edge.  If the object is lost,
+ *      go back to step 2.  If an edge is detected, just stop.
+ *   6. Continue to move forward to push the object off the table, making sure no edges are
+ *      encountered.  If the front edge is detected, the object is presumably pushed off the
+ *      table, but if any other edges are encountered, just stop.
+ *   7. Immediately move back a few cenimeters to prevent the bot from itself falling off.
  */
 
 #include "goto_object_controller.h"
 
 //#define TRIM 0
-//#define TRIM 1
-#define TRIM 2
+#define TRIM 1
+//#define TRIM 2
 //#define TRIM 3
 
 GotoObjectController::GotoObjectController(Context& ctx, bool isVerbose) :
@@ -33,10 +42,12 @@ void GotoObjectController::Routine()
 	switch (state)
 	{
 		case ESTABLISH_RANGE:
+			// start the process by spinning 2pi radians CW to find the range of the closest object
 			if (!locomotive.HasTurnedAngle(angleToTurn))
 			{
 				if (rangeSensor.DetectObject(0, &distance))
 				{
+				    // keep updating the range of the closest object within bounds as the bot spins
 					if (distance < objDistance)
 					{
 						objDistance = distance;
@@ -45,11 +56,14 @@ void GotoObjectController::Routine()
 			}
 			else
 			{
+			    // once the range has been established go on to find the object
 				if (isVerbose)
 				{
 					printf("object found at distance %d\n", objDistance);
 					printf("changing state to FIND_OBJECT\n");
 				}
+
+				// adjust the range a little farther, clear the heading (ticks) then go on to find the object
 				objDistance += 10;
 				locomotive.Stop();
 				locomotive.ClearTicks();
@@ -59,9 +73,10 @@ void GotoObjectController::Routine()
 			break;
 
 		case FIND_OBJECT:
+		    // spin CW until the object is first detected in the established range
 			if (rangeSensor.DetectObject(objDistance, &distance))
 			{
-				// get the tick count
+				// get the tick count when the object is first detected
 				tickCount = locomotive.GetTicks(Locomotive::LEFT);
 				targetCount = tickCount;
 				state = MEASURE_OBJECT;
@@ -75,17 +90,21 @@ void GotoObjectController::Routine()
 			break;
 
 		case MEASURE_OBJECT:
-			// continue until the object is undetected
+			// continue spinning until the object is undetected
 			if (!rangeSensor.DetectObject(objDistance, &distance))
 			{
 				int tickDelta;
 
 				locomotive.Stop();
+				
+				// get the tick count of when the object is first undetected
 				tickCount = locomotive.GetTicks(Locomotive::LEFT);
 				if (isVerbose)
 				{
 					printf("TickCount = %d\n", tickCount);
 				}
+				
+				// calculate the amount to spin CCW to point to the middle of the object
 				tickDelta = ((tickCount - targetCount) / 2);
 				targetCount += tickDelta - TRIM;
 				if (isVerbose)
@@ -104,11 +123,11 @@ void GotoObjectController::Routine()
 			break;
 
 		case ADJUST_POSITION:
-			// continue until the tick count is less than the target
+			// spin CCW by the amount calculated to point to the theoretical middle of the object
 			tickCount = locomotive.GetTicks(Locomotive::LEFT);
 			if (tickCount <= targetCount)
 			{
-				// the middle of the object has been found so go to it
+				// the middle of the object has been found so move forward to it
 				locomotive.Stop();
 				if (isVerbose)
 				{
@@ -121,9 +140,9 @@ void GotoObjectController::Routine()
 			break;
 
 		case GOTO_OBJECT:
-
 			if (rangeSensor.AtObject())
 			{
+			    // when the bot is at the object go on to push it
 				state = PUSH_OBJECT;
 				if (isVerbose)
 				{
@@ -133,6 +152,7 @@ void GotoObjectController::Routine()
 			}
 			else if (!rangeSensor.DetectObject(objDistance, &distance))
 			{
+			    // the object was lost so try to find it again
 				locomotive.SpinCW();
 				state = FIND_OBJECT;
 				if (isVerbose)
@@ -143,8 +163,9 @@ void GotoObjectController::Routine()
 			}
 			else if (edgeDetector.AtAnyEdge())
 			{
-				if (isVerbose) printf("changing state to AVOID_EDGE\n");
-				state = AVOID_EDGE;
+			    // need to avoid any edge at this point
+		        if (isVerbose) printf("changing state to AVOID_EDGE\n");
+		        state = AVOID_EDGE;
 			}
 			break;
 
@@ -154,27 +175,38 @@ void GotoObjectController::Routine()
 				switch (edge)
 				{
 					case EdgeDetector::FRONT:
+					    // when the front edge is detected, the object has been pushed off the table, so stop the bot and immediately back up to prevent from falling off with the object
 						locomotive.Stop();
-						Shutdown("objective achieved...\n", 0);
+				        distanceToMove = 6;
+				        locomotive.MoveReverse();
+				        if (isVerbose) printf("changing state to PRE_COMPLETE\n");
+				        state = PRE_COMPLETE;
 						break;
 					default:
-						if (isVerbose) printf("changing state to AVOID_EDGE\n");
-						state = AVOID_EDGE;
+					    // any other edge is a problem so need to avoid it
+				        if (isVerbose) printf("changing state to AVOID_EDGE\n");
+				        state = AVOID_EDGE;
 						break;
 				}
 			}
 			break;
 
 		case AVOID_EDGE:
-			if (isVerbose)
+			    // simply shutdown to avoid the edge
+			    printf("edge detected... shutting down\n");
+			    Shutdown("...edge detected\n", 0);
+			break;
+
+		case PRE_COMPLETE:
+			if (locomotive.HasMovedDistance(distanceToMove))
 			{
-				printf("edge found -- shutting down...:\n");
-				printf("  left sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::LEFT));
-				printf("  front sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::FRONT));
-				printf("  right sensor value = %d\n", edgeDetector.GetEdgeSensorValue(EdgeDetector::RIGHT));
+			    // the bot has moved back to avoid falling off with the object so complete the objective
+				state = COMPLETE;
 			}
-			locomotive.Stop();
-			Shutdown("edge detected", 0);
+			break;
+
+		case COMPLETE:
+			Shutdown("...objective achieved\n", 0);
 			break;
 
 		default:
