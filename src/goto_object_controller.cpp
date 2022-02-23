@@ -9,15 +9,20 @@
  *      the tick count to spin CCW to point to the theoretical middle of the object by spliting
  *      the difference of the "lost" and "found" tick counts.
  *   4. Spin CCW by the amount calculated in step 3 to point to the middle of the object.
- *   5. Move forward to the object all the time making sure the object doesn't get lost, due to 
- *      the bot's drifting off course, or doesn't encounter an edge.  If the object is lost,
- *      go back to step 2.  If an edge is detected, just stop.
+ *   5. Move forward to the object all the time making sure the object doesn't get lost or 
+ *      encounter an edge, due to the bot's drifting off course.  If the object is lost,
+ *      go back to step 2; if an edge is detected, just stop.
  *   6. Continue to move forward to push the object off the table, making sure no edges are
  *      encountered.  If the front edge is detected, the object is presumably pushed off the
  *      table, but if any other edges are encountered, just stop.
  *   7. Immediately move back a few cenimeters to prevent the bot from itself falling off.
+ *
+ *   The controller is implemented as a state machine with the first 7 states corresponding
+ *   to the steps of the algorithm described above.  There are 2 extra states, one that is 
+ *   entered when an edge is encountered, and a final, completion state.
  */
 
+#include "stdlib.h"
 #include "goto_object_controller.h"
 
 //#define TRIM 0
@@ -28,7 +33,7 @@
 GotoObjectController::GotoObjectController(Context& ctx, bool isVerbose) :
 		Controller(ctx, isVerbose), state(ESTABLISH_RANGE), objDistance(-1)
 {
-	if (isVerbose) printf("changing state to ESTABLISH_RANGE\n");
+	if (isVerbose) printf("changing state to ESTABLISH_RANGE...\n");
 	angleToTurn = 2*PI;
 	locomotive.SpinCW();
 	ui.Display(0x02);
@@ -60,7 +65,7 @@ void GotoObjectController::Routine()
 				if (isVerbose)
 				{
 					printf("object found at distance %d\n", objDistance);
-					printf("changing state to FIND_OBJECT\n");
+					printf("changing state to FIND_OBJECT...\n");
 				}
 
 				// adjust the range a little farther, clear the heading (ticks) then go on to find the object
@@ -84,7 +89,7 @@ void GotoObjectController::Routine()
 				{
 					printf("object found at distance %d\n", distance);
 					printf("TickCount = %d\n", tickCount);
-					printf("changing state to MEASURE_OBJECT\n");
+					printf("changing state to MEASURE_OBJECT...\n");
 				}
 			}
 			break;
@@ -117,7 +122,7 @@ void GotoObjectController::Routine()
 				state = ADJUST_POSITION;
 				if (isVerbose)
 				{
-					printf("changing state to ADJUST_POSITION\n");
+					printf("changing state to ADJUST_POSITION...\n");
 				}
 			}
 			break;
@@ -134,7 +139,7 @@ void GotoObjectController::Routine()
 					printf("TickCount = %d\n", tickCount);
 				}
 				locomotive.MoveForward();
-				if (isVerbose) printf("changing state to GOTO_OBJECT\n");
+				if (isVerbose) printf("changing state to GOTO_OBJECT...\n");
 				state = GOTO_OBJECT;
 			}
 			break;
@@ -147,7 +152,7 @@ void GotoObjectController::Routine()
 				if (isVerbose)
 				{
 					printf("object reached at distance %d\n", rangeSensor.GetDistance());
-					printf("changing state to PUSH_OBJECT\n");
+					printf("changing state to PUSH_OBJECT...\n");
 				}
 			}
 			else if (!rangeSensor.DetectObject(objDistance, &distance))
@@ -158,13 +163,13 @@ void GotoObjectController::Routine()
 				if (isVerbose)
 				{
 					printf("object lost at distance %d\n", distance);
-					printf("changing state to FIND_OBJECT\n");
+					printf("changing state to FIND_OBJECT...\n");
 				}
 			}
 			else if (edgeDetector.AtAnyEdge())
 			{
 			    // need to avoid any edge at this point
-		        if (isVerbose) printf("changing state to AVOID_EDGE\n");
+		        if (isVerbose) printf("changing state to AVOID_EDGE...\n");
 		        state = AVOID_EDGE;
 			}
 			break;
@@ -179,12 +184,12 @@ void GotoObjectController::Routine()
 						locomotive.Stop();
 				        distanceToMove = 6;
 				        locomotive.MoveReverse();
-				        if (isVerbose) printf("changing state to PRE_COMPLETE\n");
-				        state = PRE_COMPLETE;
+				        if (isVerbose) printf("changing state to PREVENT_FALLING...\n");
+				        state = PREVENT_FALLING;
 						break;
 					default:
 					    // any other edge is a problem so need to avoid it
-				        if (isVerbose) printf("changing state to AVOID_EDGE\n");
+				        if (isVerbose) printf("changing state to AVOID_EDGE...\n");
 				        state = AVOID_EDGE;
 						break;
 				}
@@ -192,20 +197,23 @@ void GotoObjectController::Routine()
 			break;
 
 		case AVOID_EDGE:
-			    // simply shutdown to avoid the edge
-			    printf("edge detected... shutting down\n");
-			    Shutdown("...edge detected\n", 0);
+			// simply stop to avoid the edge then shutdown			    
+			locomotive.Stop();
+		    system("/home/jefebot/controller/sounds/play_wawa.bat");
+			Shutdown("...edge detected\n", 0);
 			break;
 
-		case PRE_COMPLETE:
+		case PREVENT_FALLING:
 			if (locomotive.HasMovedDistance(distanceToMove))
 			{
 			    // the bot has moved back to avoid falling off with the object so complete the objective
+				locomotive.Stop();
 				state = COMPLETE;
 			}
 			break;
 
 		case COMPLETE:
+		    system("/home/jefebot/controller/sounds/play_woohoo.bat");
 			Shutdown("...objective achieved\n", 0);
 			break;
 
