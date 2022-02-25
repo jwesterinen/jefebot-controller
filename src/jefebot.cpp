@@ -53,7 +53,7 @@
 #define BatteryVoltage (4 * voltMeter->GetVoltage(ADC_BATT_CHANNEL))
 
 // command line defaults
-#define DEFAULT_SPEED 40.0
+#define DEFAULT_SPEED 35.0
 #ifdef USE_DISTANCE_NOT_VOLTAGE
 #define DEFAULT_EDGE_LIMIT ???
 #else
