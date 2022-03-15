@@ -1,7 +1,7 @@
 /*
- * adc.c
+ *  adc.cpp
  *
- *  ADC on Raspberry Pi SPI device 0
+ *  Description: Implementation of the ADC class
  */
 
 #include <stdint.h>

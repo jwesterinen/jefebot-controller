@@ -1,3 +1,19 @@
+/*
+ *  controller.h
+ * 
+ *  Description:  This is the base class for any behavior control program for jefebot.
+ *      All controllers have the following properties that must be defined:
+ *          - Callback:  the event handler for the controller
+ *          - ui:                the physical user interface objecgt used to control jefebot
+ *          - locomotive:        the locomotive object
+ *          - edgeDetector:      the edge detector object
+ *          - rangeSensor:       the range sensor object
+ *          - ifVerbose:         degree of verbosity flag
+ *          - edge:              ???
+ *          - distanceToMove:    distance variable
+ *          - angleToTurn:       angle variable
+ */
+
 #ifndef INCLUDE_CONTROLLER_H_
 #define INCLUDE_CONTROLLER_H_
 

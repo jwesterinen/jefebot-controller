@@ -1,12 +1,21 @@
 /*
- * roam_controller.c
+ *  roam_controller.cpp
  * 
- * Description:  This is the controller for jefebot.
- *   There are two modes that are selectable by the buttons and command line options:
- *     1. Roam: In this mode the jefebot moves forward until it detects an edge
- *        then avoids it and continues to move forward.
- *     2. GoToObject: In this mode the jefebot spins until it detects an object
- *        then it moves towards the object and stops when it arrives.
+ *  Description:  This is the "roam" controller for jefebot.  In this mode, jefebot
+ *  will traverse a table without falling off.  The algorithm is as follows:
+ *      1. Move forward until an edge or an object is detected then stop.
+ *      2. Backup 3cm.
+ *      3. If the left edge was detected, a request is made to turn .8 radians clockwise.  If
+ *         the right edge was detected, a request is made to turn .8 radians counter clockwise.
+ *         If the front edge was detected, a request is made to turn 1.6 radians counter clockwise.
+ *      4. Make the requested turn from state 3, then move forward and return to step 1.
+ *
+ *  The controller is implemented as a state machine with 4 states corresponding
+ *  to the steps of the algorithm described above.  There is no completion state; roaming
+ *  will continue until the right-most button on jefebot is pressed.
+ *
+ *  The Routine() function is registered in the main program as a periodic event handler, and
+ *  is therefore continually called at a rate specified during its registration.
  */
 
 #include "roam_controller.h"

@@ -1,5 +1,10 @@
 /*
- * adc.h
+ *  adc.h
+ *
+ *  Description: Class to implement an ADC on Raspberry Pi SPI device 0
+ *
+ *  Interface:
+ *    - GetVoltage(): Read the current voltage of the battery
  *
  *  Created on: Mar 2, 2017
  *      Author: jeff
@@ -21,10 +26,13 @@ private:
 	int InitSPI(const char *dev);
 
 protected:
+    // get the actual digital code value from the ADC device
 	int GetDigitalCode(unsigned channel)
 	{
 		return digitalCodes[channel];
 	}
+	
+	// event handler for the ADC object
 	void Routine();
 
 public:

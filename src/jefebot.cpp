@@ -3,29 +3,30 @@
  * 
  * Description:  This is the control program for the jefebot.
  *   There are two modes that are selectable by the buttons:
- *     1. Roam: In this mode the jefebot moves forward until it detects an edge
- *        then avoids it and continues to move forward.
- *     2. GoToObject: In this mode the jefebot spins until it detects an object
- *        then it moves towards the object and stops when it arrives.
+ *     1. Roam: In this mode jefebot roams around a table without falling off.
+ *        This is the first of the 3 HBRC Table Top challenges.
+ *     2. GoToObject: In this mode jefebot finds an object on a table then pushes
+ *        it off the table without itself falling.  This is the second of the 
+ *        3 HBRC Table Top challenges.
+ *   This module defines and registers all of the events and their handlers,
+ *   including the two behavior controllers for the modes described above.  As
+ *   described in the DP Framework project, everything including the specific
+ *   control programs are events.
  * 
  * Synopsis:
- *     jefebot [-m<r|o|g> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -v -h]
+ *     jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -d <distance> -a <angle> -v -h]
  *
  *     options:
- *         -m <mode>: 	set the controller mode:
- *         				 'r' = roam (default)
- *         				 'o' = go to object
- *         				 'g' = go to goal (unimplemented)
- *         -e <value>:	set the range outside of which an edge is detected
- *         -o <value>: 	set the range within which to find an object
- *         -i <value>:	set how close to stop at the object
- *         -s <value>:	set the motor speed (must be >=60)
- *         -p <value>:	print sensor values:
- *                       'v' = battery voltage
- *                       's' = all distance sensors (range and edge)
- *         -v:          set verbose mode
- *         -h:			display help
- */
+ *         -m <mode>:     set the controller mode: 'r' = Roam, 'o' = GoToObject
+ *         -e <value>:    set the range outside of which an edge is detected
+ *         -o <value>:    set the range within which to find an object
+ *         -i <value>:    set how close to stop at the object
+ *         -s <value>:    set the motor speed (must be >=60)
+ *         -p <value>:    print sensor values: 'v' = battery voltage, 's' = all distance sensors (range and edge)
+ *         -d <value>:    move forward the specified number of centimeters
+ *         -a <value>:    spin CW the specified number of radians
+ *         -v:            set verbose mode
+ *         -h:            display this help
 
 #include <cstdio>
 #include <cstdlib>
@@ -123,7 +124,7 @@ const char* GetErrorMsg(int err)
 	return "unknown error";
 }
 
-// ***** periodic routines *****
+// ***** periodic event handler routines *****
 
 // voltage watchdog routine to run every 10 Sec
 BEGIN_PERIODIC_ROUTINE(VoltageWatchdog)
@@ -136,6 +137,7 @@ BEGIN_PERIODIC_ROUTINE(VoltageWatchdog)
 
 END_PERIODIC_ROUTINE(VoltageWatchdog)(PERIOD_10_SEC);
 
+// display the battery voltage
 BEGIN_PERIODIC_ROUTINE(DisplayBatteryVoltage)
 
 	if (BatteryVoltage == 0.0)
@@ -233,6 +235,7 @@ END_PERIODIC_ROUTINE(TestModeIndication)(PERIOD_300_mSEC);
 
 // ***** initialization and termination *****
 
+// parse the command line arguments
 static void ParseOptions(int argc, char* argv[])
 {
 	const char* optStr = "m:e:o:i:s:p:d:a:vh";
@@ -312,7 +315,7 @@ static void ParseOptions(int argc, char* argv[])
 				printf("         -h:            display this help\n");
 				exit(ERR_NONE);
 			default:
-				printf("usage: jefebot [-m<r|o|g> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -v -h]\n");
+				printf("usage: jefebot [-m<mode> -e <edge thresh> -o <obj outer> -i <obj inner> -s <speed> -p<v|s> -d <distance> -a <angle> -v -h]\n");
 				exit(ERR_INITIALIZATION);
 		}
 	}
@@ -325,6 +328,7 @@ static void ParseOptions(int argc, char* argv[])
 #endif
 }
 
+// init the behavior controll program defined in the command line
 void InitControlProgram(int argc, char* argv[], DP::EventContext& evtCtx)
 {
 	try
@@ -404,11 +408,13 @@ void InitControlProgram(int argc, char* argv[], DP::EventContext& evtCtx)
 
 }
 
+// default shutdown routine
 void Shutdown()
 {
 	Shutdown("", ERR_NONE);
 }
 
+// routine to properly shut down jefebot
 void Shutdown(const char* msg, int error)
 {
 	// stop moving if there is a locomotive

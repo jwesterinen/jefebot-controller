@@ -1,26 +1,29 @@
 /*
- * goto_object_controller.c
+ *  goto_object_controller.cpp
  * 
- * Description:  This is the "go to object" controller for jefebot.  In this mode, jefebot
- *   will find an object on the table, go to it, and push it off.  The algorithm is as follows:
- *   1. Spin one complete revolution CW to find the closest object within bounds and save the distance.
- *   2. Spin CW until the object is first detected again and save this "found" tick count.  
- *   3. Continue to spin CW until the object is lost and save that "lost" tick count. Calculate 
- *      the tick count to spin CCW to point to the theoretical middle of the object by spliting
- *      the difference of the "lost" and "found" tick counts.
- *   4. Spin CCW by the amount calculated in step 3 to point to the middle of the object.
- *   5. Move forward to the object all the time making sure the object doesn't get lost or 
- *      encounter an edge, due to the bot's drifting off course.  If the object is lost,
- *      go back to step 2; if an edge is detected, just stop.
- *   6. Continue to move forward to push the object off the table, making sure no edges are
- *      encountered.  If the front edge is detected, the object is presumably pushed off the
- *      table, but if any other edges are encountered, just stop.
- *   7. Immediately move back a few cenimeters to prevent the bot from itself falling off.
+ *  Description:  This is the "go to object" controller for jefebot.  In this mode, jefebot
+ *  will find an object on the table, go to it, and push it off.  The algorithm is as follows:
+ *      1. Spin one complete revolution CW to find the closest object within bounds and save the distance.
+ *      2. Spin CW until the object is first detected again and save this "found" tick count.  
+ *      3. Continue to spin CW until the object is lost and save that "lost" tick count. Calculate 
+ *         the tick count to spin CCW to point to the theoretical middle of the object by spliting
+ *         the difference of the "lost" and "found" tick counts.
+ *      4. Spin CCW by the amount calculated in step 3 to point to the middle of the object.
+ *      5. Move forward to the object all the time making sure the object doesn't get lost or 
+ *         encounter an edge, due to the bot's drifting off course.  If the object is lost,
+ *         go back to step 2; if an edge is detected, just stop.
+ *      6. Continue to move forward to push the object off the table, making sure no edges are
+ *         encountered.  If the front edge is detected, the object is presumably pushed off the
+ *         table, but if any other edges are encountered, just stop.
+ *      7. Immediately move back a few cenimeters to prevent the bot from itself falling off.
  *
- *   The controller is implemented as a state machine with the first 7 states corresponding
- *   to the steps of the algorithm described above.  There are 2 extra states, one that is 
- *   entered when an edge is encountered, and a final, completion state.
- */
+ *  The controller is implemented as a state machine with the first 7 states corresponding
+ *  to the steps of the algorithm described above.  There are 2 extra states, one that is 
+ *  entered when an edge is encountered, and a final, completion state.
+ *
+ *  The Routine() function is registered in the main program as a periodic event handler, and
+ *  is therefore continually called at a rate specified during its registration.
+*/
 
 #include "stdlib.h"
 #include "goto_object_controller.h"

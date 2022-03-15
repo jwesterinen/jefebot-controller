@@ -1,12 +1,8 @@
 /*
- * controller.c
+ * controller.cpp
  * 
- * Description:  This is the controller for jefebot.
- *   There are two modes that are selectable by the buttons and command line options:
- *     1. Roam: In this mode the jefebot moves forward until it detects an edge
- *        then avoids it and continues to move forward.
- *     2. GoToObject: In this mode the jefebot spins until it detects an object
- *        then it moves towards the object and stops when it arrives.
+ * Description:  This is the implementation of the Controller class.
+ *
  */
 
 #include "controller.h"

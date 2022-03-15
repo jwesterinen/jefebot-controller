@@ -1,5 +1,10 @@
 /*
- * peripherals.h
+ *  peripherals.h
+ *
+ *  Description: a set of peripheral classes specialized from the DP peripheral classes
+ *  for jefebot.
+ *
+ *  All classes and interfaces are described below.
  *
  *  Created on: Mar 20, 2017
  *      Author: jeff
@@ -27,6 +32,9 @@
 #define TIF_IDX		"9"   	// Text Interface
 #define PING4_IDX 	"10"  	// Quad interface to a Parallax Ping)))
 
+/*
+ * class to control the LEDs and buttons on the BBIO4 board
+ */
 class UserInterface : public DP::BB4IO
 {
 public:
@@ -43,6 +51,10 @@ public:
 	}
 };
 
+/*
+ * combo class to implement a dual motor controller and accept the ticks returned
+ * from each motor to keep track of the current position of the bot
+ */
 class Locomotive : public DP::COUNT4, public DP::DC2
 {
 private:
@@ -78,27 +90,49 @@ public:
 	{
 		//delete motors;
 	}
+	
+	// return the current tick count of the motors
 	int GetTicks(int index)
 	{
 		return ticks[index];
 	}
+	
+	// return the current mode, i.e. forward/reverse, of the motors
 	float GetMode(int index)
 	{
 		return modes[index];
 	}
+	
+	// return the current power value, i.e. speed, of the motors
 	float GetPower(int index)
 	{
 		return powers[index];
 	}
+	
+	// clear all motor ticks
 	void ClearTicks();
+	
+	// set the mode, power of the motors
 	void SetMode(char modeL, char modeR);
 	void SetPower(float powerL, float powerR);
+	
+	// halt the movement of the motors
 	void Stop();
+	
+	// describe which direction to move, this is used in conjunction with the
+	// HasMovedDistance() function to perform a linear movement
 	void MoveForward();
 	void MoveReverse();
+	
+	// describe which angle to turn, this is used in conjunction with the
+	// HasTurnedAngle() function to perform an angular movement
 	void SpinCW();
 	void SpinCCW();
+	
+	// flag to signify that the requested distance moved has been achieved
 	bool HasMovedDistance(unsigned distanceInCm, unsigned* curDistance = 0);
+	
+	// flag to signify that the requested angle turned has been achieved
 	bool HasTurnedAngle(float angleInRadians, float* curAngle = 0);
 };
 
@@ -113,14 +147,20 @@ private:
 
 public:
 	SinglePingRangeSensor(DP::EventContext& evtCtx, int _innerLimit, int _outerLimit);
+	
+	// get the currently sensed distance
 	unsigned GetDistance()
 	{
 		return DP::PING4::GetDistance(SENSOR_0);
 	}
+	
+	// flag to signify that the bot is next to an object
 	bool AtObject()
 	{
 	    return (GetDistance() < innerLimit);
 	}
+	
+	// return the distance from an object within a given limit
 	bool DetectObject(unsigned limit, unsigned* pDistance)
 	{
 		if (limit == 0)
@@ -131,7 +171,9 @@ public:
 	}
 };
 
-// edge detector based on 3 Sharp GP2Y0A21YK0F distance sensors
+/*
+ * combination 3-edge detector based on 3 Sharp GP2Y0A21YK0F distance sensors
+ */
 class EdgeDetector : public DP::ADC812
 {
 private:
@@ -150,13 +192,19 @@ public:
 	enum EDGE_SENSORS {LEFT = CHANNEL_1, FRONT = CHANNEL_2, RIGHT = CHANNEL_3};
 
 	EdgeDetector(DP::EventContext& evtCtx, unsigned nominalEdgeLimit);
+	
+	// flag to signify that some edge has been detected
 	bool AtAnyEdge(enum EDGE_SENSORS* pEdge = 0);
 	// TODO: change from using voltage to distance for values and limits
+	
 #ifdef USE_DISTANCE_NOT_VOLTAGE
+    // flag to signify that a specific edge has been detected
 	bool AtEdge(enum EDGE_SENSORS sensorId)
 	{
 	    return (GetEdgeSensorDistance_cm(sensorId) < edgeLimits[sensorId]);
 	}
+	
+	// return the sensed distance of an edge detector
 	unsigned GetEdgeSensorDistance_cm(EDGE_SENSORS sensorId)
 	{
 		// from the Sharp GP2Y0A21YK0F datasheet
@@ -176,7 +224,7 @@ public:
 };
 
 /*
- * This class is implemented with an ADC being handled at 50mS
+ * a volt meter class implemented with an ADC being handled at 50mS
  */
 class VoltMeter : public ADC
 {

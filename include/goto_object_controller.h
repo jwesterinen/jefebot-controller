@@ -1,3 +1,15 @@
+/*
+ *  goto_object_controller.h
+ *
+ *  Description: Class to implement a behavior control program for jefebot that performs
+ *  the requirements of the HBRC Table Top Challenge level 2, e.g. find an object on a table,
+ *  go to it, then push it off the table without itself falling off.  The details of how this 
+ *  is implemented is in the file goto_object_controller.cpp.
+ *
+ *  Created on: Mar 2, 2017
+ *      Author: jeff
+ */
+
 #ifndef INCLUDE_GOTO_OBJECT_CONTROLLER_H_
 #define INCLUDE_GOTO_OBJECT_CONTROLLER_H_
 

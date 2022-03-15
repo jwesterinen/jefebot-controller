@@ -1,6 +1,11 @@
 /*
  * peripherals.cpp
  *
+ *  Description: set of peripherals customized for jefebot
+ *
+ *  This module defines all of the peripheral classes that are specialized for jefebot.
+ *  All base classes are DP peripheral classes contained in the DP Framework modules.
+ *
  *  Created on: Mar 20, 2017
  *      Author: jeff
  */
